@@ -1,0 +1,42 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.1209
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TicTacToe-MCTS-NEAT", "TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT.csproj", "{B48E04B3-20B4-458D-BAD3-BEE7DD547A72}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{8499A926-62C8-4103-BE83-A66E6AA72CE0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B48E04B3-20B4-458D-BAD3-BEE7DD547A72} = {B48E04B3-20B4-458D-BAD3-BEE7DD547A72}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\Server.csproj", "{163154A0-17B6-4895-9522-C3F1DCA0EE0F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B48E04B3-20B4-458D-BAD3-BEE7DD547A72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B48E04B3-20B4-458D-BAD3-BEE7DD547A72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B48E04B3-20B4-458D-BAD3-BEE7DD547A72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8499A926-62C8-4103-BE83-A66E6AA72CE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8499A926-62C8-4103-BE83-A66E6AA72CE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8499A926-62C8-4103-BE83-A66E6AA72CE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8499A926-62C8-4103-BE83-A66E6AA72CE0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{163154A0-17B6-4895-9522-C3F1DCA0EE0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{163154A0-17B6-4895-9522-C3F1DCA0EE0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{163154A0-17B6-4895-9522-C3F1DCA0EE0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{163154A0-17B6-4895-9522-C3F1DCA0EE0F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EB694E73-60D3-4FFE-BBDF-367A3CE0E732}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
+EndGlobal

@@ -7,9 +7,18 @@ public class MainMenuManager : MonoBehaviour
 {
     [SerializeField] private Menu startMenu, logInToAccountMenu, serverMenu;
 
+    public static MainMenuManager instance;
+
+    public Menu GetStartMenu() { return startMenu; }
+
     private static Thread mainThread = Thread.CurrentThread;
 
     private HelperSpace.ThreadIntClass isConnected = new HelperSpace.ThreadIntClass();
+
+    private void Awake()
+    {
+        instance = this;
+    }
 
     private void Start()
     {
@@ -85,8 +94,11 @@ public class MainMenuManager : MonoBehaviour
         connectToServerThread.Start(newUser);
     }
 
-    public void LoadScene(int sceneIndex)
+# if UNITY_EDITOR
+    private void OnApplicationQuit()
     {
-        SceneManager.LoadScene(sceneIndex);
+        OnlineGameManager.GetUser().DisconnectFromServer();
+        print("topped playing");
     }
+#endif
 }

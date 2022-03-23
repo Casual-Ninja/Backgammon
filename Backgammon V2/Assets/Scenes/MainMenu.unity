@@ -171,7 +171,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 33608453}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 813c5cf94becf3c4493abdc98afc1800, type: 3}
+  m_Script: {fileID: 11500000, guid: 0d6db42c6ef9b0b4093962c542b6aa98, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!114 &33608456
@@ -3459,9 +3459,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 957945872}
-        m_TargetAssemblyTypeName: MainMenuManager, Assembly-CSharp
-        m_MethodName: LoadScene
+      - m_Target: {fileID: 33608455}
+        m_TargetAssemblyTypeName: ServerMenu, Assembly-CSharp
+        m_MethodName: StartGameButton
         m_Mode: 3
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

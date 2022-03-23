@@ -22,15 +22,6 @@ public class OnlineGameManager : MonoBehaviour
 
     IEnumerator Start()
     {
-        //isInAccountPhase = true;
-
-        //user = new ClientUser("", "");
-
-        //user.LoginToServer();
-
-        //// logg in to an account
-        //yield return StartCoroutine(AccountPhase());
-        
         // start a new game sesion
         user.StartNewGame();
         
@@ -46,51 +37,6 @@ public class OnlineGameManager : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.1f);
     }
 
-    private IEnumerator AccountPhase()
-    {
-        while (isInAccountPhase)
-        {
-            string answer = "C";
-
-            (string, string) accountInfo = ("Erezzzz", "123456789");
-
-            user.SetAccountInfo(accountInfo.Item1, accountInfo.Item2);
-
-            if (answer == "C")
-                user.CreateAccount();
-            else
-                user.LoginToAccount();
-
-            (string, MessageType) messageOfLoggin;
-            bool gotAnswer = false;
-
-            while (gotAnswer == false)
-            {
-                yield return StartCoroutine(WaitForServerAnswer());
-
-                if (user.TryGetMessage(out messageOfLoggin))
-                {
-                    print("Got message: " + messageOfLoggin);
-                    if (messageOfLoggin.Item2 == MessageType.AccountInformationOk)
-                    {
-                        isInAccountPhase = false; // since i logged in succesfully
-                        gotAnswer = true;
-                        print("Succesfully did " + answer);
-                    }
-                    else if (messageOfLoggin.Item2 == MessageType.AccountInformationError)
-                    {
-                        gotAnswer = true;
-                        print("Failed to do " + answer);
-                    }
-                    else
-                    {
-                        print(messageOfLoggin.Item1);
-                    }
-                }
-            }
-        }
-    }
-
     private IEnumerator StartingGamePhase()
     {
         while (user.inGame == false) // while i haven't officialy started the game
@@ -100,21 +46,27 @@ public class OnlineGameManager : MonoBehaviour
             (string, MessageType) message;
             if (user.TryGetMessage(out message))
             {
-                if (message.Item2 == MessageType.StartGame)
+                switch (message.Item2)
                 {
-                    BackGammonChanceState chanceState = BackGammonChanceState.PorotocolInformation(message.Item1.Substring(0, 2));
+                    case MessageType.StartGame:
+                        BackGammonChanceState chanceState = BackGammonChanceState.PorotocolInformation(message.Item1.Substring(0, 2));
 
-                    user.SetStartGameState(chanceState);
+                        user.SetStartGameState(chanceState);
 
-                    viewManager.InitializeDeafualtPips();
-                    yield return StartCoroutine(viewManager.SetDiceValues(user.state));
+                        viewManager.InitializeDeafualtPips();
+                        yield return StartCoroutine(viewManager.SetDiceValues(user.state));
 
-                    if (message.Item1[2] == '1')
-                        user.isPlayerTurn = true;
-                    else
-                        user.isPlayerTurn = false;
+                        if (message.Item1[2] == '1')
+                            user.isPlayerTurn = true;
+                        else
+                            user.isPlayerTurn = false;
 
-                    print("Is player turn: " + user.isPlayerTurn);
+                        print("Is player turn: " + user.isPlayerTurn);
+                        break;
+                    case MessageType.DisconnectFromServer:
+                        user.DisconnectFromServer();
+                        ReturnToMainMenu();
+                        break;
                 }
             }
         }
@@ -183,6 +135,11 @@ public class OnlineGameManager : MonoBehaviour
                         case MessageType.MoveError: // The move i sent wasn't correct for some reason...
                             waitForServerMessage = false;
                             break;
+                        case MessageType.DisconnectFromServer:
+                            print("In disconnect from server in gamephase");
+                            user.DisconnectFromServer();
+                            ReturnToMainMenu();
+                            break;
                         default:
                             break;
                     }
@@ -202,4 +159,11 @@ public class OnlineGameManager : MonoBehaviour
         StopAllCoroutines(); // stop all coroutines since they are supposed to work only in this scene...
         SceneManager.LoadScene(0);
     }
+
+# if UNITY_EDITOR
+    private void OnApplicationQuit()
+    {
+        OnlineGameManager.GetUser().DisconnectFromServer();
+    }
+#endif
 }

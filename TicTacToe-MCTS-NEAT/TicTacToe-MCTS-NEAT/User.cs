@@ -35,11 +35,21 @@ namespace BackGammonUser
 
     public class InformationContainer
     {
-        private Dictionary<Information, double> informationDict;
+        public Dictionary<Information, double> informationDict { get; }
 
         public InformationContainer()
         {
             this.informationDict = new Dictionary<Information, double>();
+        }
+
+        public InformationContainer(Dictionary<Information, double> dict)
+        {
+            Dictionary<Information, double> copy = new Dictionary<Information, double>();
+
+            foreach (KeyValuePair<Information, double> pair in dict)
+                copy.Add(pair.Key, pair.Value);
+
+            this.informationDict = copy;
         }
 
         public double GetInformation(Information informationType)
@@ -57,7 +67,10 @@ namespace BackGammonUser
 
         public void AddToValue(Information informationType, double changeValue)
         {
-            informationDict[informationType] += changeValue;
+            if (informationDict.ContainsKey(informationType))
+                informationDict[informationType] += changeValue;
+            else
+                informationDict.Add(informationType, changeValue);
         }
 
         public string GetAllInformation()
@@ -71,6 +84,16 @@ namespace BackGammonUser
             if (allInformation != "")
                 allInformation.Substring(0, allInformation.Length - 1); // removes the ',' at the end
             return allInformation;
+        }
+
+        public InformationContainer Copy()
+        {
+            Dictionary<Information, double> copy = new Dictionary<Information, double>();
+
+            foreach (KeyValuePair<Information, double> pair in informationDict)
+                copy.Add(pair.Key, pair.Value);
+
+            return new InformationContainer(copy);
         }
 
         public enum Information
@@ -88,26 +111,24 @@ namespace BackGammonUser
 
     public abstract class User
     {
-        [JsonIgnore] protected Random rnd;
+        protected Random rnd;
         public string username { get; protected set; }
         public string password { get; protected set; }
-        [JsonIgnore] protected Socket socket;
-        
-        [JsonIgnore] public bool inGame { get; set; }
-        [JsonIgnore] public bool isPlayerTurn { get; set; }
-        [JsonIgnore] public BackGammonChanceState state { get; set; }
-        [JsonIgnore] public BackGammonChoiceState parentState { get; set; }
+        protected Socket socket;
+
+        public bool IsConnected { get { return socket == null ? false : socket.Connected; } }
+
+        public bool inGame { get; set; }
+        public bool isPlayerTurn { get; set; }
+        public BackGammonChanceState state { get; set; }
+        public BackGammonChoiceState parentState { get; set; }
         public InformationContainer information { get; set; }
-
-        [JsonIgnore] private int bytesOfLengthRead = 0;
-        [JsonIgnore] private byte[] lengthBuffer = new byte[3];
-
-        [JsonIgnore] private int bytesOfInformationRead = 0;
-        [JsonIgnore] private byte[] informationBuffer = null;
-
-        [JsonIgnore] private string dataToSendNextPush = "";
         
+        private byte[] lengthBuffer = new byte[3];
+        private byte[] informationBuffer = null;
 
+        private string dataToSendNextPush = "";
+        
         private string AddPreMessageInformation(string stringOfInfromation, MessageType messageType)
         {
             stringOfInfromation = (int)messageType + stringOfInfromation;
@@ -130,92 +151,39 @@ namespace BackGammonUser
         /// </summary>
         /// <param name="information">The information that was received.</param>
         /// <returns>True if received all data succesfully.</returns>
-        private bool ReceiveInformation(out string information)
+        private void ReceiveInformation(out string information)
         {
-            int available = socket.Available;
-            if (available == 0)
+            int amountRead = socket.Receive(lengthBuffer);
+            if (amountRead == 0)
+                throw new Exception("socket disconnected");
+
+            string lengthString = GetStringFromEncodedData(lengthBuffer);
+            int lengthParsed;
+            if (int.TryParse(lengthString, out lengthParsed)) // managed to parse the length
             {
-                information = "";
-                return false;
-            }
+                if (informationBuffer == null || informationBuffer.Length != lengthParsed)
+                    informationBuffer = new byte[lengthParsed];
 
-            if (bytesOfLengthRead != 3) // i haven't received all the length yet
+                amountRead = socket.Receive(informationBuffer);
+                if (amountRead == 0)
+                    throw new Exception("socket disconnected");
+
+                information = GetStringFromEncodedData(informationBuffer);
+            }
+            else // something went wrong! thats not a number, this can only happen if the client isn't using the correct protocol...
             {
-                int readLegnth = Math.Min(available, 3 - bytesOfLengthRead);
-                bytesOfLengthRead += socket.Receive(lengthBuffer, bytesOfLengthRead, readLegnth, SocketFlags.None);
-                available -= readLegnth;
+                // i know this is client error because im using tcp so no way its sending problem
+                // don't know what to do... maybe just drop the connection with him?
+                throw new Exception("Didn't manage to parse the length!");
             }
-
-            if (bytesOfLengthRead == 3) // i received all the length
-            {
-                string lengthString = GetStringFromEncodedData(lengthBuffer);
-                int lengthParsed;
-                if (int.TryParse(lengthString, out lengthParsed)) // managed to parse the length
-                {
-                    if (informationBuffer == null || informationBuffer.Length != lengthParsed)
-                        informationBuffer = new byte[lengthParsed];
-
-                    int readLength = Math.Min(available, lengthParsed - bytesOfInformationRead);
-                    bytesOfInformationRead += socket.Receive(informationBuffer, bytesOfInformationRead, readLength, SocketFlags.None);
-
-
-                    if (bytesOfInformationRead == lengthParsed) // i read all the data
-                    {
-                        information = GetStringFromEncodedData(informationBuffer);
-                        bytesOfLengthRead = 0;
-                        bytesOfInformationRead = 0;
-                        return true;
-                    }
-                }
-                else // something went wrong! thats not a number, this can only happen if the client isn't using the correct protocol...
-                {
-                    // i know this is client error because im using tcp so no way its sending problem
-                    // don't know what to do... maybe just drop the connection with him?
-                    throw new Exception("Didn't manage to parse the length!");
-                }
-            }
-            information = "";
-            return false;
         }
 
         protected abstract void ParseMessage(string message, MessageType messageType);
-
-        //protected void AddDataToSend(string informationToSend, MessageType messageType)
-        //{
-        //    Console.WriteLine("Want to send: " + informationToSend + " type: " + messageType);
-        //    //socket.Send(DataToSend(informationToSend, messageType));
-        //    dataToSendNextPush += AddPreMessageInformation(informationToSend, messageType);
-        //}
         
         protected void AddDataToSend(string informationToSend, MessageType messageType)
         {
             dataToSendNextPush += AddPreMessageInformation(informationToSend, messageType);
         }
-
-        public bool SocketConnected(int microSeconds)
-        {
-            if (socket == null || socket.Connected == false)
-                return false;
-
-            bool part1 = socket.Poll(microSeconds, SelectMode.SelectRead);
-            bool part2 = (socket.Available == 0);
-            Console.WriteLine(part1 + " " + part2);
-            if (part1 && part2)
-                return false;
-            else // seems like im connected
-            {
-                byte[] buff = new byte[1];
-                Console.WriteLine("Checking in receive");
-                if (socket.Receive(buff, SocketFlags.Peek) == 0)
-                {
-                    // Client disconnected
-                    return false;
-                }
-                Console.WriteLine("Stopped Checking in receive");
-                return true;
-            }
-        }
-
 
         public void PushData()
         {
@@ -237,42 +205,40 @@ namespace BackGammonUser
         public virtual void CheckForMessages()
         {
             string information;
-            while (ReceiveInformation(out information))
+            ReceiveInformation(out information);
+            if (information.Length >= 3)
             {
-                if (information.Length >= 3)
+                string messageType = information.Substring(0, 3);
+                int typeValue;
+                if (int.TryParse(messageType, out typeValue))
                 {
-                    string messageType = information.Substring(0, 3);
-                    int typeValue;
-                    if (int.TryParse(messageType, out typeValue))
+                    try
                     {
-                        try
-                        {
-                            MessageType type = (MessageType)typeValue;
-                            if (information.Length == 3)
-                                ParseMessage("", type);
-                            else
-                                ParseMessage(information.Substring(3, information.Length - 3), type);
-                        }
-                        catch (Exception exception)
-                        {
-                            Console.WriteLine(exception);
-                            Console.WriteLine(information);
-                            Console.WriteLine("Unkown Message Type: " + typeValue);
-                        }
-
+                        MessageType type = (MessageType)typeValue;
+                        if (information.Length == 3)
+                            ParseMessage("", type);
+                        else
+                            ParseMessage(information.Substring(3, information.Length - 3), type);
                     }
+                    catch (Exception exception)
+                    {
+                        Console.WriteLine(exception);
+                        Console.WriteLine(information);
+                        Console.WriteLine("Unkown Message Type: " + typeValue);
+                    }
+
                 }
-                else
-                {
-                    Console.WriteLine("Information Wasn't in correct format: Length must be equal or higher than 3.");
-                }
+            }
+            else
+            {
+                Console.WriteLine("Information Wasn't in correct format: Length must be equal or higher than 3.");
             }
         }
     }
 
     public class ClientUser : User
     {
-        [JsonIgnore] private Queue<(string, MessageType)> serverInformation = new Queue<(string, MessageType)>();
+        private Queue<(string, MessageType)> serverInformation = new Queue<(string, MessageType)>();
 
         public bool TryGetMessage(out (string, MessageType) message)
         {
@@ -405,18 +371,18 @@ namespace BackGammonUser
 
     public class ServerUser : User
     {
-        [JsonIgnore] public const string DataPath = "Data\\";
-        [JsonIgnore] public const string UserInformationPath = "Information";
-        [JsonIgnore] public const string UserPasswordPath = "Password";
+        public const string DataPath = "Data\\";
+        public const string UserInformationPath = "Information";
+        public const string UserPasswordPath = "Password";
 
-        [JsonIgnore] private const float TimeToSearch = 1000; // seconds to think per move
-        [JsonIgnore] private const int SimulationCount = 10000; // roll outs per move
-        [JsonIgnore] private const int threadsToUse = 8; // 8 threads per move
+        private const float TimeToSearch = 1000; // seconds to think per move
+        private const int SimulationCount = 10000; // roll outs per move
+        private const int threadsToUse = 8; // 8 threads per move
 
 
-        [JsonIgnore] private Dictionary<string, ServerUser> knownClients;
+        private Dictionary<string, SavingServerUser> knownClients;
 
-        public ServerUser(Socket socket, Dictionary<string, ServerUser> knownClients)
+        public ServerUser(Socket socket, Dictionary<string, SavingServerUser> knownClients)
         {
             if (rnd == null)
                 rnd = new Random();
@@ -444,7 +410,7 @@ namespace BackGammonUser
                 return;
             }
 
-            ServerUser savedDataOfUser;
+            SavingServerUser savedDataOfUser;
 
             bool accountExists;
 
@@ -454,25 +420,19 @@ namespace BackGammonUser
             }
             if (accountExists)
             {
+                Console.WriteLine("Account exists...");
                 if (savedDataOfUser.password == checkAccountPassWord)
                 {
                     this.username = checkAccountName;
                     this.password = checkAccountPassWord;
 
-                    this.information = savedDataOfUser.information;
-                    this.state = (BackGammonChanceState)savedDataOfUser.state.Copy();
-                    this.parentState = (BackGammonChoiceState)savedDataOfUser.parentState.Copy();
-                    this.inGame = savedDataOfUser.inGame;
-
-                    lock (knownClients)
-                    {
-                        knownClients[checkAccountName] = this;
-                    }
+                    this.information = new InformationContainer(savedDataOfUser.informationDict);
 
                     AddDataToSend("Logged in.", MessageType.AccountInformationOk);
                 }
                 else // correct username but incorrect password
                 {
+                    Console.WriteLine($"Incorrect pasword {savedDataOfUser.password} != {checkAccountPassWord}");
                     AddDataToSend("Incorrect Username or Password", MessageType.AccountInformationError);
                 }
             }
@@ -515,9 +475,11 @@ namespace BackGammonUser
                     this.information = new InformationContainer();
                     this.inGame = false;
 
-                    this.knownClients.Add(this.username, this); // create this account
+                    SavingServerUser newUserSave = new SavingServerUser(this);
 
-                    SaveLoad.SaveData(GetSpecificUserPath(), this); // just save the plain password
+                    this.knownClients.Add(this.username, newUserSave); // create this account
+
+                    SaveAllUserData();
 
                     messageToSend = ("", MessageType.AccountInformationOk);
                 }
@@ -706,17 +668,13 @@ namespace BackGammonUser
 
         private string GetSpecificUserPath()
         {
-            return DataPath + username + "\\";
-        }
-
-        public static string GetSpecificUserPath(string name)
-        {
-            return DataPath + name + "\\";
+            return DataPath + username;
         }
 
         private void SaveAllUserData()
         {
-            SaveLoad.SaveData(GetSpecificUserPath(), this);
+            SavingServerUser dataToSave = new SavingServerUser(this);
+            SaveLoad.SaveData(GetSpecificUserPath(), dataToSave);
         }
 
         protected override void ParseMessage(string message, MessageType messageType)
@@ -787,6 +745,38 @@ namespace BackGammonUser
             {
                 Console.WriteLine("Client sent message with wrong format");
             }
+        }
+    }
+    
+    [Serializable]
+    public class SavingServerUser
+    {
+        public string username { get; set; }
+        public string password { get; set; }
+
+        public Dictionary<InformationContainer.Information, double> informationDict { get; set; }
+
+        public SavingServerUser(ServerUser user)
+        {
+            this.username = user.username;
+            this.password = user.password;
+            this.informationDict = user.information.Copy().informationDict;
+        }
+
+        [JsonConstructor]
+        public SavingServerUser(string username, string password, Dictionary<InformationContainer.Information, double> informationDict)
+        {
+            this.username = username;
+            this.password = password;
+            if (informationDict == null)
+                this.informationDict = new Dictionary<InformationContainer.Information, double>();
+            else
+                this.informationDict = informationDict;
+        }
+
+        public override string ToString()
+        {
+            return $"name: {username} password: {password} information:\n{informationDict}";
         }
     }
 }

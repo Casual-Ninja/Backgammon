@@ -13,7 +13,7 @@ namespace Server
     {
         private const int portNumber = 12357;
         
-        private static Dictionary<string, ServerUser> knownClients;
+        private static Dictionary<string, SavingServerUser> knownClients;
 
         private static List<ServerUser> onlineUsers = new List<ServerUser>();
 
@@ -21,21 +21,28 @@ namespace Server
 
         static void Main(string[] args)
         {
-            knownClients = new Dictionary<string, ServerUser>();
+            knownClients = new Dictionary<string, SavingServerUser>();
 
             string[] allUserPaths = SaveLoad.GetAllFilesInDirectory(ServerUser.DataPath);
+            
             if (allUserPaths != null)
             {
                 foreach (string s in allUserPaths)
                 {
+                    Console.WriteLine(s);
                     object user;
-                    if (SaveLoad.LoadData<ServerUser>(s, out user))
+                    if (SaveLoad.LoadData<SavingServerUser>(s, out user))
                     {
-                        ServerUser theUser = (ServerUser)user;
+                        SavingServerUser theUser = (SavingServerUser)user;
                         knownClients.Add(theUser.username, theUser);
+
+                        Console.WriteLine(theUser);
                     }
+                    else
+                        Console.WriteLine("Didn't manage to read");
                 }
             }
+
 
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             IPAddress ipAddress = new IPAddress(new byte[] { 0, 0, 0, 0 });
@@ -54,14 +61,9 @@ namespace Server
             }
             while (true)
             {
-                Thread.Sleep(100); // check for messages and send messages to client every 0.1 seconds
+                //Thread.Sleep(100); // check for messages and send messages to client every 0.1 seconds
                 try
                 {
-                    if (theUser.SocketConnected(1000) == false)
-                        throw new Exception("Connection Isn't valid anymore");
-                    else
-                        Console.WriteLine("Socket is connected");
-
                     theUser.CheckForMessages();
                     theUser.PushData();
                 }

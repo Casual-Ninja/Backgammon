@@ -224,9 +224,9 @@ namespace GAME
             if (countOfPieces + myEatenCount == 15) // did enemy get out with pieces?
             {
                 // he didn't, is there an eaten piece / a piece at my last 6 point?
-                if (myEatenCount > 0 || myPieces[0] >= 6)
-                    return 3; // a back gammon win
-                return 2; // a gammon win
+                if (myEatenCount == 0 && myPieces[0] >= 6)
+                    return 2; // a gammon win
+                return 3; // a backgammon win
             }
             return 1; // just a regular win
         }
@@ -2013,8 +2013,8 @@ namespace GAME
 
         public void AddToAction(List<(sbyte, sbyte)> moves)
         {
-            foreach ((sbyte, sbyte) move in moves)
-                AddToAction(move);
+            for (int i = 0; i < moves.Count; i++)
+                AddToAction(moves[i]);
         }
 
         public void AddToAction((sbyte, sbyte) move)

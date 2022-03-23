@@ -32,34 +32,65 @@ namespace BackGammonUser
 
     public class InformationContainer
     {
-        private string[] information;
+        public Dictionary<Information, double> informationDict { get; }
 
         public InformationContainer()
         {
-            this.information = new string[Enum.GetNames(typeof(Information)).Length];
+            this.informationDict = new Dictionary<Information, double>();
         }
 
-        public string GetInformation(Information informationType)
+        public InformationContainer(Dictionary<Information, double> dict)
         {
-            return this.information[(int)informationType];
+            Dictionary<Information, double> copy = new Dictionary<Information, double>();
+
+            foreach (KeyValuePair<Information, double> pair in dict)
+                copy.Add(pair.Key, pair.Value);
+
+            this.informationDict = copy;
         }
 
-        public void SetInformation(Information informationType, string information)
+        public double GetInformation(Information informationType)
         {
-            this.information[(int)informationType] = information;
+            return informationDict[informationType];
         }
 
+        public void SetInformation(Information informationType, double information)
+        {
+            if (informationDict.ContainsKey(informationType))
+                informationDict[informationType] = information;
+            else
+                informationDict.Add(informationType, information);
+        }
+
+        public void AddToValue(Information informationType, double changeValue)
+        {
+            if (informationDict.ContainsKey(informationType))
+                informationDict[informationType] += changeValue;
+            else
+                informationDict.Add(informationType, changeValue);
+        }
 
         public string GetAllInformation()
         {
             string allInformation = "";
 
-            for (int i = 0; i < information.Length - 1; i++)
-                allInformation += information[i] + ",";
-
-            allInformation += information[information.Length - 1];
-
+            foreach (KeyValuePair<Information, double> pair in informationDict)
+            {
+                allInformation += Enum.GetName(typeof(Information), (int)pair.Key) + ":" + pair.Value + ",";
+            }
+            if (allInformation != "")
+                allInformation.Substring(0, allInformation.Length - 1); // removes the ',' at the end
             return allInformation;
+        }
+
+        public InformationContainer Copy()
+        {
+            Dictionary<Information, double> copy = new Dictionary<Information, double>();
+
+            foreach (KeyValuePair<Information, double> pair in informationDict)
+                copy.Add(pair.Key, pair.Value);
+
+            return new InformationContainer(copy);
         }
 
         public enum Information
@@ -77,8 +108,8 @@ namespace BackGammonUser
 
     public abstract class User
     {
-        protected string username;
-        protected string password;
+        public string username { get; protected set; }
+        public string password { get; protected set; }
         protected Socket socket;
 
         public bool IsConnected { get { return socket == null ? false : socket.Connected; } }
@@ -88,16 +119,12 @@ namespace BackGammonUser
         public BackGammonChanceState state { get; set; }
         public BackGammonChoiceState parentState { get; set; }
         public InformationContainer information { get; set; }
-
-        private int bytesOfLengthRead = 0;
+        
         private byte[] lengthBuffer = new byte[3];
-
-        private int bytesOfInformationRead = 0;
         private byte[] informationBuffer = null;
 
         private string dataToSendNextPush = "";
-
-
+        
         private string AddPreMessageInformation(string stringOfInfromation, MessageType messageType)
         {
             stringOfInfromation = (int)messageType + stringOfInfromation;
@@ -109,7 +136,7 @@ namespace BackGammonUser
         {
             return Encoding.UTF8.GetBytes(str);
         }
-
+        
         private string GetStringFromEncodedData(byte[] data)
         {
             return Encoding.UTF8.GetString(data);
@@ -120,56 +147,35 @@ namespace BackGammonUser
         /// </summary>
         /// <param name="information">The information that was received.</param>
         /// <returns>True if received all data succesfully.</returns>
-        private bool ReceiveInformation(out string information)
+        private void ReceiveInformation(out string information)
         {
-            int available = socket.Available;
-            if (available == 0)
+            int amountRead = socket.Receive(lengthBuffer);
+            if (amountRead == 0)
+                throw new Exception("socket disconnected");
+
+            string lengthString = GetStringFromEncodedData(lengthBuffer);
+            int lengthParsed;
+            if (int.TryParse(lengthString, out lengthParsed)) // managed to parse the length
             {
-                information = "";
-                return false;
-            }
+                if (informationBuffer == null || informationBuffer.Length != lengthParsed)
+                    informationBuffer = new byte[lengthParsed];
 
-            if (bytesOfLengthRead != 3) // i haven't received all the length yet
+                amountRead = socket.Receive(informationBuffer);
+                if (amountRead == 0)
+                    throw new Exception("socket disconnected");
+
+                information = GetStringFromEncodedData(informationBuffer);
+            }
+            else // something went wrong! thats not a number, this can only happen if the client isn't using the correct protocol...
             {
-                int readLegnth = Math.Min(available, 3 - bytesOfLengthRead);
-                bytesOfLengthRead += socket.Receive(lengthBuffer, bytesOfLengthRead, readLegnth, SocketFlags.None);
-                available -= readLegnth;
+                // i know this is client error because im using tcp so no way its sending problem
+                // don't know what to do... maybe just drop the connection with him?
+                throw new Exception("Didn't manage to parse the length!");
             }
-
-            if (bytesOfLengthRead == 3) // i received all the length
-            {
-                string lengthString = GetStringFromEncodedData(lengthBuffer);
-                int lengthParsed;
-                if (int.TryParse(lengthString, out lengthParsed)) // managed to parse the length
-                {
-                    if (informationBuffer == null || informationBuffer.Length != lengthParsed)
-                        informationBuffer = new byte[lengthParsed];
-
-                    int readLength = Math.Min(available, lengthParsed - bytesOfInformationRead);
-                    bytesOfInformationRead += socket.Receive(informationBuffer, bytesOfInformationRead, readLength, SocketFlags.None);
-
-
-                    if (bytesOfInformationRead == lengthParsed) // i read all the data
-                    {
-                        information = GetStringFromEncodedData(informationBuffer);
-                        bytesOfLengthRead = 0;
-                        bytesOfInformationRead = 0;
-                        return true;
-                    }
-                }
-                else // something went wrong! thats not a number, this can only happen if the client isn't using the correct protocol...
-                {
-                    // i know this is client error because im using tcp so no way its sending problem
-                    // don't know what to do... maybe just drop the connection with him?
-                    throw new Exception("Didn't manage to parse the length!");
-                }
-            }
-            information = "";
-            return false;
         }
 
         protected abstract void ParseMessage(string message, MessageType messageType);
-
+        
         protected void AddDataToSend(string informationToSend, MessageType messageType)
         {
             dataToSendNextPush += AddPreMessageInformation(informationToSend, messageType);
@@ -188,41 +194,40 @@ namespace BackGammonUser
             }
             catch (Exception exception)
             {
-                //print("Error in sending data: " + exception);
+                Console.WriteLine("Error in sending data: " + exception);
             }
         }
 
         public virtual void CheckForMessages()
         {
             string information;
-            while (ReceiveInformation(out information))
+            ReceiveInformation(out information);
+            if (information.Length >= 3)
             {
-                if (information.Length >= 3)
+                string messageType = information.Substring(0, 3);
+                int typeValue;
+                if (int.TryParse(messageType, out typeValue))
                 {
-                    string messageType = information.Substring(0, 3);
-                    int typeValue;
-                    if (int.TryParse(messageType, out typeValue))
+                    try
                     {
-                        try
-                        {
-                            MessageType type = (MessageType)typeValue;
-                            if (information.Length == 3)
-                                ParseMessage("", type);
-                            else
-                                ParseMessage(information.Substring(3, information.Length - 3), type);
-                        }
-                        catch (Exception exception)
-                        {
-                            Console.WriteLine(exception);
-                            Console.WriteLine(information);
-                            Console.WriteLine("Unkown Message Type: " + typeValue);
-                        }
+                        MessageType type = (MessageType)typeValue;
+                        if (information.Length == 3)
+                            ParseMessage("", type);
+                        else
+                            ParseMessage(information.Substring(3, information.Length - 3), type);
                     }
+                    catch (Exception exception)
+                    {
+                        Console.WriteLine(exception);
+                        Console.WriteLine(information);
+                        Console.WriteLine("Unkown Message Type: " + typeValue);
+                    }
+
                 }
-                else
-                {
-                    Console.WriteLine("Information Wasn't in correct format: Length must be equal or higher than 3.");
-                }
+            }
+            else
+            {
+                Console.WriteLine("Information Wasn't in correct format: Length must be equal or higher than 3.");
             }
         }
     }
@@ -269,7 +274,7 @@ namespace BackGammonUser
             this.password = password;
         }
 
-        private void ManageSocketData(object mainThread)
+        private void ManageCheckingForMessages(object mainThread)
         {
             Thread actualValue = (Thread)mainThread;
             while (actualValue.IsAlive)
@@ -277,8 +282,29 @@ namespace BackGammonUser
                 Thread.Sleep(100);
                 try
                 {
-                    PushData();
                     CheckForMessages();
+                }
+                catch
+                {
+                    DisconnectedFromServer();
+                    break;
+                }
+            }
+        }
+
+        private void ManageSocketData(object mainThread)
+        {
+            Thread actualValue = (Thread)mainThread;
+
+            Thread checkForMessagesThread = new Thread(ManageCheckingForMessages);
+            checkForMessagesThread.Start(Thread.CurrentThread);
+
+            while (actualValue.IsAlive)
+            {
+                Thread.Sleep(100);
+                try
+                {
+                    PushData();
                 }
                 catch
                 {
@@ -290,6 +316,7 @@ namespace BackGammonUser
 
         private void DisconnectedFromServer()
         {
+            Debug.Log("adding disconnected from server");
             serverInformation.Enqueue(("", MessageType.DisconnectFromServer));
         }
 
@@ -337,8 +364,8 @@ namespace BackGammonUser
 
         public void DisconnectFromServer()
         {
-            DisconnectedFromServer();
             PushData();
+            DisconnectedFromServer();
             socket.Close();
             inGame = false;
         }

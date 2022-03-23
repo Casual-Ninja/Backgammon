@@ -8,10 +8,13 @@ namespace TicTacToe_MCTS_NEAT
     public static class SaveLoad
     {
         private static SaveLoadInstance instance = new SaveLoadInstance();
+        private const string dataPath = "D:\\Users\\Owner\\GitHubRepos\\DataSave\\";
 
         private static string GetActualPath(string path)
         {
-            return "C:\\Users\\Owner\\source\\repos\\TicTacToe - MCTS - NEAT\\Server\\" + path;
+            if (path.StartsWith(dataPath))
+                return path;
+            return dataPath + path;
         }
 
         public static void SaveData(string path, object data)
@@ -66,15 +69,29 @@ namespace TicTacToe_MCTS_NEAT
         {
             private static Dictionary<string, (bool, object)> saveDictionary = new Dictionary<string, (bool, object)>();
 
+            private void MakeSurePathExists(string path)
+            {
+                if (PathExists(path))
+                    return;
+                System.Console.WriteLine("IDK PATH:" + path);
+                int index = path.LastIndexOf('\\');
+                string prevPath = path.Substring(0, index);
+                Directory.CreateDirectory(prevPath);
+            }
+
             private bool SaveToDisk<T>(string path, T value)
             {
+                MakeSurePathExists(path);
+                System.Console.WriteLine($"The value type {value.GetType()}, save to disk: {value}");
                 string jsonText = JsonSerializer.Serialize(value);
+                System.Console.WriteLine("The saved data: " + jsonText);
                 File.WriteAllText(path, jsonText);
                 return true;
             }
 
             private bool LoadFromDisk<T>(string path, out object loadedValue)
             {
+                System.Console.WriteLine("Loading from path: " + path);
                 if (PathExists(path))
                 {
                     string jsonText = File.ReadAllText(path);
@@ -119,14 +136,19 @@ namespace TicTacToe_MCTS_NEAT
 
             public void SaveAllDataToDisk()
             {
-                foreach (KeyValuePair<string, (bool, object)> saveValues in saveDictionary)
+                var keys = saveDictionary.Keys;
+                List<(string, object)> changeStuff = new List<(string, object)>();
+                foreach (string key in keys)
                 {
-                    if (saveValues.Value.Item1 == false)
+                    (bool, object) value = saveDictionary[key];
+                    if (value.Item1 == false)
                     {
-                        SaveToDisk(saveValues.Key, saveValues.Value.Item2);
-                        saveDictionary[saveValues.Key] = (true, saveValues.Value.Item2);
+                        SaveToDisk(key, value.Item2);
+                        changeStuff.Add((key, value.Item2));
                     }
                 }
+                foreach ((string, object) item in changeStuff)
+                    saveDictionary[item.Item1] = (true, item.Item2);
             }
         }
     }

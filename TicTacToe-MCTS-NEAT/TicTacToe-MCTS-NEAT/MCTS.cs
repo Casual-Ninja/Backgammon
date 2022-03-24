@@ -1,8 +1,7 @@
-﻿using System.Threading;
-using System.Collections.Generic;
-using GAME;
+﻿using GAME;
 using HelperSpace;
-using TicTacToe_MCTS_NEAT;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace MCTS
 {
@@ -11,7 +10,6 @@ namespace MCTS
         private State state;
         private MCTSNode parent;
         private MCTSNode[] children;
-
 
         private int numberOfVisits;
         private int score;
@@ -201,14 +199,14 @@ namespace MCTS
 
             // if its not chance state, chose state corresponding to score
             float[] scores = new float[possibleMoves.Count];
-            float maxScore = 0;
+            float sumOfScores = 0;
             for (int i = 0; i < possibleMoves.Count; i++)
             {
                 // score ranged between 0 - infinity
                 scores[i] = possibleMoves[i].GetScore(prevState);
-                maxScore += scores[i];
+                sumOfScores += scores[i];
             }
-            float randomValue = HelperMethods.RandomValue(0, maxScore, rnd);
+            float randomValue = HelperMethods.RandomValue(0, sumOfScores, rnd);
             for (int i = 0; i < scores.Length; i++)
             {
                 randomValue -= scores[i];

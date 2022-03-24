@@ -82,15 +82,22 @@ public class InputManager : MonoBehaviour
                         }
                         else
                         {
+                            int minDieValue = 24 - selectedIndex;
                             // either i went out from enemy home board
-                            // or enemy entered, which isn't possible since its my input
-                            int maxIndex = diesLeft.Count - 1;
-                            for (int i = diesLeft.Count - 2; i >= 0; i--)
+                            // or enemy entered, which isn't possible since its my input (so first option)
+
+                            int minIndex = -1;
+                            for (int i = 0; i < diesLeft.Count; i++)
                             {
-                                if (diesLeft[i] > diesLeft[maxIndex])
-                                    maxIndex = i;
+                                if (diesLeft[i] >= minDieValue)
+                                {
+                                    if (minIndex == -1)
+                                        minIndex = i;
+                                    else if (diesLeft[i] < diesLeft[minIndex])
+                                        minIndex = i;
+                                }
                             }
-                            diesLeft.RemoveAt(maxIndex);
+                            diesLeft.RemoveAt(minIndex);
                         }
 
                         CalculateAllowedMoves(BoardViewManager.instance.currentState, diesLeft);
@@ -150,6 +157,8 @@ public class InputManager : MonoBehaviour
         print(choiceState);
         print("Legal Actions: " + HelperSpace.HelperMethods.ListToString(legalActions));
         print("Options: " + HelperSpace.HelperMethods.ListToString(allowedMoves));
+
+        print("Dies left: " + HelperSpace.HelperMethods.ListToString(diesLeft));
     }
 
     public IEnumerator GetInput(BackGammonChoiceState choiceState, BackGammonChanceState chanceState, BackGammonChanceAction insertedInput)

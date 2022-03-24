@@ -53,7 +53,10 @@ public class BoardViewManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        float size = topLeft.GetZoneHeight() / 5f;
+        float size = Mathf.Min(topLeft.GetZoneHeight() / 5f, topLeft.GetZoneWidth());
+
+        positiveEnd.GetComponent<HorizontalLayoutGroup>().spacing = -size / 2f;
+        negativeEnd.GetComponent<HorizontalLayoutGroup>().spacing = -size / 2f;
 
         pipsMoving = new Dictionary<VisualPip, bool>();
 
@@ -63,13 +66,14 @@ public class BoardViewManager : MonoBehaviour
 
         InitializeAllPoints();
 
-        //BackGammonChoiceState cs = new BackGammonChoiceState(
-        //    new sbyte[] { -2, -2, -2, 0, -4, -2, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 3, 2, 3, 2, 2, -1 }, 0, 1);
-        //BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(1, 2));
+        BackGammonChoiceState cs = new BackGammonChoiceState(
+            new sbyte[] { -2, -2, -2, 0, -4, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 3, 1, 2 }, 0, 0);
+        BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(1, 3));
 
-        //InitializeNewState(cs);
-        //BackGammonChanceAction output = new BackGammonChanceAction();
-        //StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
+        InitializeNewState(cs);
+        BackGammonChanceAction output = new BackGammonChanceAction();
+        StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
+        StartCoroutine(SetDiceValues(chanceState));
 
         //InitializeDeafualtPips();
         //HighlighPoints(true, new List<int>() { 0, 1, 5, 6, 16, 20, 21, 25 });
@@ -272,16 +276,16 @@ public class BoardViewManager : MonoBehaviour
 
     private void MinDieUsed(int minDieUsed)
     {
-        int maxDie = 1;
+        int minDie = 6;
         foreach (VisualDie die in allDice)
         {
             if (die.GetDieValue() >= minDieUsed && die.IsEnabled() && die.IsUsed() == false)
             {
-                maxDie = Mathf.Max(die.GetDieValue(), maxDie);
+                minDie = Mathf.Min(die.GetDieValue(), minDie);
             }
         }
 
-        UsedDie(maxDie);
+        UsedDie(minDie);
     }
 
     private void DieUsedInMove(int indexFrom, int indexTo, bool isPositivePlayer)

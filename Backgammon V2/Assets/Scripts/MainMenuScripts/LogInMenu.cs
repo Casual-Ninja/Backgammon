@@ -4,7 +4,7 @@ using BackGammonUser;
 
 public class LogInMenu : Menu
 {
-    [SerializeField] private Menu serverMenu, mainMenu;
+    [SerializeField] private Menu serverMenu;
     [SerializeField] private TextMeshProUGUI showClientText;
     [SerializeField] private TMP_InputField usernameTxt, passwordTxt;
 
@@ -19,7 +19,7 @@ public class LogInMenu : Menu
             switch (message.Item2)
             {
                 case MessageType.DisconnectFromServer:
-                    return mainMenu;
+                    return MainMenuManager.instance.GetStartMenu();
                 case MessageType.AccountInformationError:
                     showClientText.text = message.Item1;
                     return this;

@@ -82,7 +82,7 @@ namespace BackGammonUser
                 allInformation += Enum.GetName(typeof(Information), (int)pair.Key) + ":" + pair.Value + ",";
             }
             if (allInformation != "")
-                allInformation.Substring(0, allInformation.Length - 1); // removes the ',' at the end
+                allInformation = allInformation.Substring(0, allInformation.Length - 1); // removes the ',' at the end
             return allInformation;
         }
 
@@ -153,8 +153,9 @@ namespace BackGammonUser
         /// <returns>True if received all data succesfully.</returns>
         private void ReceiveInformation(out string information)
         {
+            //005hello
             int amountRead = socket.Receive(lengthBuffer);
-            if (amountRead == 0)
+            if (amountRead == 0) // client disconnected
                 throw new Exception("socket disconnected");
 
             string lengthString = GetStringFromEncodedData(lengthBuffer);
@@ -732,18 +733,18 @@ namespace BackGammonUser
                             }
                             break;
                         default:
-                            Console.WriteLine("Client sent message with unknown data type to send.");
+                            Console.WriteLine("Client sent message with unknown data type to send: " + value);
                             break;
                     }
                 }
                 catch
                 {
-                    Console.WriteLine("Client sent message with wrong format");
+                    Console.WriteLine("Client sent message with no known Message Type: " + value);
                 }
             }
             else
             {
-                Console.WriteLine("Client sent message with wrong format");
+                Console.WriteLine("Client sent message with wrong format: " + message);
             }
         }
     }

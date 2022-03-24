@@ -532,7 +532,6 @@ namespace GAME
             return legalActions;
         }
 
-
         public bool IsLegalMove(State prevState, Action action)
         {
             if (action is BackGammonChanceAction == false)
@@ -2043,81 +2042,7 @@ namespace GAME
 
         public override float GetScore(State prevState)
         {
-            if (Count == 0)
-                return 1;
-            float score = 1;
-
-            BackGammonChoiceState actualState = (BackGammonChoiceState)prevState;
-            int maxEnemyIndex = actualState.enemyPieces.Count == 0 ? 25 : actualState.enemyPieces[actualState.enemyPieces.Count - 1];
-
-            // go over moves
-            List<IndexCounter> indexesInfo = new List<IndexCounter>(Count * 2);
-
-            for (int i = 0; i < Count; i++)
-            {
-                bool found = false;
-                for (int j = 0; j < indexesInfo.Count; j++)
-                {
-                    if (indexesInfo[j].index == indexes[i].Item1)
-                    {
-                        indexesInfo[j] = new IndexCounter(indexes[i].Item1, indexesInfo[j].count - 1);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                    indexesInfo.Add(new IndexCounter(indexes[i].Item1, -1));
-
-                if (indexes[i].Item2 != -1)
-                {
-                    found = false;
-
-                    for (int j = 0; j < indexesInfo.Count; j++)
-                    {
-                        if (indexesInfo[j].index == indexes[i].Item2)
-                        {
-                            indexesInfo[j] = new IndexCounter(indexes[i].Item2, indexesInfo[j].count + 1);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found)
-                        indexesInfo.Add(new IndexCounter(indexes[i].Item2, 1));
-                }
-            }
-
-            for (int i = 0; i < indexesInfo.Count; i++)
-            {
-                if (indexesInfo[i].index > maxEnemyIndex) // im after the max enemy index, so no need to check this index for building houses
-                    continue;
-
-                sbyte stateIndexCount = actualState.board[indexesInfo[i].index];
-                if (indexesInfo[i].count < 0) // meaning i already had a piece there and i left more than i got here
-                {
-                    if (stateIndexCount >= 2) // did i already have a house here?
-                    {
-                        if (stateIndexCount - indexesInfo[i].count < 2)
-                            score *= DestroyHouseScore;
-                    }
-                }
-                else
-                {
-                    if (stateIndexCount == -1) // im eating a piece (even if im eating then moving (info.count == 0) i still ate)
-                    {
-                        score *= EatingScore;
-                        stateIndexCount++;
-                    }
-                    if (stateIndexCount <= 1)
-                    {
-                        if (indexesInfo[i].count + stateIndexCount >= 2)
-                            score *= BuildHouseScore;
-                    }
-                }
-            }
-
-            Console.WriteLine(HelperMethods.ListToString(indexesInfo));
-
-            return score;
+            return 1;
         }
 
         public override bool Equals(object obj)

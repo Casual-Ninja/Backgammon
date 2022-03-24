@@ -348,7 +348,7 @@ namespace BackGammonUser
 
         public void GetLatestUserInformation()
         {
-            AddDataToSend(MessageType.InformationContainer.ToString(), MessageType.RequestData);
+            AddDataToSend(((int)MessageType.InformationContainer).ToString(), MessageType.RequestData);
         }
 
         public void StartNewGame()

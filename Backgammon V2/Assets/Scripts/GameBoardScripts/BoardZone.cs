@@ -27,6 +27,11 @@ public class BoardZone : MonoBehaviour
         return GetComponent<RectTransform>().rect.height;
     }
 
+    public float GetZoneWidth()
+    {
+        return GetComponent<RectTransform>().rect.width;
+    }
+
     public float GetYPosition()
     {
         return transform.localPosition.y;

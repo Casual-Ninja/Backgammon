@@ -16,9 +16,9 @@ namespace User
 
         static void Main(string[] args)
         {
-            BackGammonChoiceState start = new BackGammonChoiceState(
-                                          new sbyte[] { 1, -2, 0, 1, 2, -5, 0, -2, -2, 0, 0, 0, -3, 0, 2, 0, 0, 0, 3, -1, 4, 2, 0, 0 },
-                                          0, 0);
+            //BackGammonChoiceState start = new BackGammonChoiceState(
+            //                              new sbyte[] { 1, -2, 0, 1, 2, -5, 0, -2, -2, 0, 0, 0, -3, 0, 2, 0, 0, 0, 3, -1, 4, 2, 0, 0 },
+            //                              0, 0);
 
             //BackGammonChoiceState start = new BackGammonChoiceState(
             //                              new sbyte[] { -2, -1, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
@@ -26,10 +26,10 @@ namespace User
 
             ////start.RotateBoard();
 
-            ////BackGammonChoiceState start = new BackGammonChoiceState();
+            BackGammonChoiceState start = new BackGammonChoiceState();
 
             //Console.WriteLine(start);
-            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(1,4));
+            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(2,4));
 
             //List<GAME.Action> actions = startDice.GetLegalActions(start);
 
@@ -52,10 +52,10 @@ namespace User
 
             Stopwatch sw = new Stopwatch();
 
-            MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(10000, 8);
+            sw.Start();
+            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(10000, 8);
 
-            //sw.Start();
-            //MCTSNode bestMove = startNode.BestAction(200000);
+            MCTSNode bestMove = startNode.BestAction(200000);
 
             sw.Stop();
             Console.WriteLine(sw.Elapsed);

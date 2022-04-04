@@ -119,7 +119,7 @@ namespace TicTacToe_MCTS_NEAT
             {
                 if (saveDictionary.ContainsKey(path)) // do i already contain this data
                 {
-                    loadedValue = saveDictionary[path];
+                    loadedValue = saveDictionary[path].Item2;
                     return true;
                 }
                 else // i dont...

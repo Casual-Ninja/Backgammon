@@ -53,7 +53,7 @@ public class OnlineGameManager : MonoBehaviour
 
                         user.SetStartGameState(chanceState);
 
-                        viewManager.InitializeDeafualtPips();
+                        yield return StartCoroutine(viewManager.InitializeDeafualtPips());
                         yield return StartCoroutine(viewManager.SetDiceValues(user.state));
 
                         if (message.Item1[2] == '1')

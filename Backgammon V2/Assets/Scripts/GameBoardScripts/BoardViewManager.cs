@@ -21,6 +21,11 @@ public class BoardViewManager : MonoBehaviour
     [SerializeField] private Color32 pointColor1, pointColor2;
     [SerializeField] private Color32 pipColor1, pipColor2;
 
+    private Stack<UndoStateSave> movesMade = new Stack<UndoStateSave>();
+
+    private VisualPip[] positiveVisualPips;
+    private VisualPip[] negativeVisualPips;
+
     public bool InBoardTransition { get; private set; }
 
     public BackGammonChoiceState currentState { get; private set; }
@@ -66,14 +71,14 @@ public class BoardViewManager : MonoBehaviour
 
         InitializeAllPoints();
 
-        BackGammonChoiceState cs = new BackGammonChoiceState(
-            new sbyte[] { -2, -2, -2, 0, -4, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 3, 1, 2 }, 0, 0);
-        BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(1, 3));
+        //BackGammonChoiceState cs = new BackGammonChoiceState(
+        //    new sbyte[] { -2, -2, -2, 0, -4, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 3, 1, 2 }, 0, 0);
+        //BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(1, 3));
 
-        InitializeNewState(cs);
-        BackGammonChanceAction output = new BackGammonChanceAction();
-        StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
-        StartCoroutine(SetDiceValues(chanceState));
+        //InitializeNewState(cs);
+        //BackGammonChanceAction output = new BackGammonChanceAction();
+        //StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
+        //StartCoroutine(SetDiceValues(chanceState));
 
         //InitializeDeafualtPips();
         //HighlighPoints(true, new List<int>() { 0, 1, 5, 6, 16, 20, 21, 25 });
@@ -152,7 +157,246 @@ public class BoardViewManager : MonoBehaviour
         ForceUpdateCanvas();
     }
 
-    private void InitializePipState(BackGammonChoiceState pipsState)
+    private void CorrectAllPointText()
+    {
+        // set so that the numbers on the pips are correct after the movement
+        foreach (byte index in currentState.myPieces)
+        {
+            int zone = index / 6;
+
+            BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
+            BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
+            parentPoint.SetCorrectNumberText();
+        }
+        foreach (byte index in currentState.enemyPieces)
+        {
+            int zone = index / 6;
+            BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
+            BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
+            parentPoint.SetCorrectNumberText();
+        }
+    }
+
+    private void InstantiateVisualPips()
+    {
+        if (positiveVisualPips == null)
+        {
+            positiveVisualPips = new VisualPip[15];
+            negativeVisualPips = new VisualPip[15];
+
+            for (int i = 0; i < positiveVisualPips.Length; i++)
+            {
+                positiveVisualPips[i] = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
+                positiveVisualPips[i].SetColor(pipColor1);
+                positiveVisualPips[i].SetSize(pipSize);
+
+                negativeVisualPips[i] = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
+                negativeVisualPips[i].SetColor(pipColor2);
+                negativeVisualPips[i].SetSize(pipSize);
+            }
+        }
+
+        foreach (VisualPip pip in positiveVisualPips)
+            pip.SetHighlight(false);
+        foreach (VisualPip pip in negativeVisualPips)
+            pip.SetHighlight(false);
+    }
+
+    private IEnumerator InitializePipStateV2(BackGammonChoiceState pipsState)
+    {
+        InstantiateVisualPips();
+
+        this.currentState = pipsState;
+
+        pipsMoving.Clear();
+
+        int positiveFinishedCount = 15 - pipsState.myEatenCount;
+        int negativeFinishedCount = 15 - pipsState.enemyEatenCount;
+
+        int positiveVisualIndex = 0;
+        int negativeVisualIndex = 0;
+
+        int wantedPipCount;
+        int currentPipCount;
+
+        for (int i = 0; i < pipsState.board.Length; i++)
+        {
+            int zoneIndex = i / 6;
+
+            BoardPoint point = insideBoard.GetChild(zoneIndex).GetComponent<BoardZone>().GetPoint(i - (zoneIndex * 6));
+            wantedPipCount = Mathf.Abs(pipsState.board[i]);
+            currentPipCount = point.PipCount();
+
+            
+            for (int j = Mathf.Max(wantedPipCount, currentPipCount); j > 0; j--)
+            {
+                if (j <= wantedPipCount) // i should have this pip
+                {
+                    VisualPip wantedPip;
+                    if (pipsState.board[i] > 0)
+                    {
+                        wantedPip = positiveVisualPips[positiveVisualIndex];
+                        positiveVisualIndex++;
+                        positiveFinishedCount--;
+                    }
+                    else
+                    {
+                        print(negativeVisualPips.Length + " " + negativeVisualIndex + " stuff...");
+                        wantedPip = negativeVisualPips[negativeVisualIndex];
+                        negativeVisualIndex++;
+                        negativeFinishedCount--;
+                    }
+
+                    if (j > currentPipCount) // do I need to instantiate a pip
+                    {
+                        RectTransform newPip = Instantiate(pipPrefab, point.GetPipHolder()).GetComponent<RectTransform>();
+                        newPip.sizeDelta = pipSize;
+                        wantedPip.SetInvisiblePip(newPip);
+                    }
+                    else // already have the invisible pip instantiated here
+                    {
+                        wantedPip.SetInvisiblePip(point.GetPip(j - 1));
+                    }
+                }
+                else // i shouldn't have this pip
+                {
+                    if (j <= currentPipCount) // this pip is instantiated, need to destroy
+                    {
+                        Destroy(point.GetPip(j - 1).gameObject);
+                    }
+                }
+            }
+        }
+
+        wantedPipCount = pipsState.myEatenCount;
+        currentPipCount = positiveEaten.childCount;
+        for (int i = Mathf.Max(wantedPipCount, currentPipCount); i > 0; i--)
+        {
+            if (i <= wantedPipCount) // i want to have this pip
+            {
+                VisualPip wantedPip = positiveVisualPips[positiveVisualIndex];
+                positiveVisualIndex++;
+
+                if (i > currentPipCount) // do i need to instantiate this pip
+                {
+                    RectTransform newPip = Instantiate(pipPrefab, positiveEaten).GetComponent<RectTransform>();
+                    newPip.sizeDelta = pipSize;
+                    wantedPip.SetInvisiblePip(newPip);
+                }
+                else // i dont...
+                {
+                    wantedPip.SetInvisiblePip(positiveEaten.GetChild(i - 1));
+                }
+            }
+            else // i dont want this pip
+            {
+                if (i <= currentPipCount) // but i have it currently
+                {
+                    Destroy(positiveEaten.GetChild(i - 1).gameObject);
+                }
+            }
+        }
+
+        wantedPipCount = pipsState.enemyEatenCount;
+        currentPipCount = negativeEaten.childCount;
+        for (int i = Mathf.Max(wantedPipCount, currentPipCount); i > 0; i--)
+        {
+            if (i <= wantedPipCount) // i want to have this pip
+            {
+                VisualPip wantedPip = negativeVisualPips[negativeVisualIndex];
+                negativeVisualIndex++;
+
+                if (i > currentPipCount) // do i need to instantiate this pip
+                {
+                    RectTransform newPip = Instantiate(pipPrefab, negativeEaten).GetComponent<RectTransform>();
+                    newPip.sizeDelta = pipSize;
+                    wantedPip.SetInvisiblePip(newPip);
+                }
+                else // i dont...
+                {
+                    wantedPip.SetInvisiblePip(negativeEaten.GetChild(i - 1));
+                }
+            }
+            else // i dont want this pip
+            {
+                if (i <= currentPipCount) // but i have it currently
+                {
+                    Destroy(negativeEaten.GetChild(i - 1).gameObject);
+                }
+            }
+        }
+
+        wantedPipCount = positiveFinishedCount;
+        currentPipCount = positiveEnd.childCount;
+        for (int i = Mathf.Max(wantedPipCount, currentPipCount); i > 0; i--)
+        {
+            if (i <= wantedPipCount) // do i want to have this pip
+            {
+                VisualPip wantedPip = positiveVisualPips[positiveVisualIndex];
+                positiveVisualIndex++;
+
+                if (i > currentPipCount) // i dont have this pip, so instantiate
+                {
+                    RectTransform newPip = Instantiate(pipPrefab, positiveEnd).GetComponent<RectTransform>();
+                    newPip.sizeDelta = pipSize;
+                    wantedPip.SetInvisiblePip(newPip);
+                }
+                else // already have this pip
+                {
+                    wantedPip.SetInvisiblePip(positiveEnd.GetChild(i - 1));
+                }
+            }
+            else // i dont want this pip
+            {
+                if (i <= currentPipCount) // but i have it currently
+                {
+                    Destroy(positiveEnd.GetChild(i - 1).gameObject);
+                }
+            }
+        }
+
+        wantedPipCount = negativeFinishedCount;
+        currentPipCount = negativeEnd.childCount;
+        for (int i = Mathf.Max(wantedPipCount, currentPipCount); i > 0; i--)
+        {
+            if (i <= wantedPipCount) // do i want to have this pip
+            {
+                VisualPip wantedPip = negativeVisualPips[negativeVisualIndex];
+                negativeVisualIndex++;
+
+                if (i > currentPipCount) // i dont have this pip, so instantiate
+                {
+                    RectTransform newPip = Instantiate(pipPrefab, negativeEnd).GetComponent<RectTransform>();
+                    newPip.sizeDelta = pipSize;
+                    wantedPip.SetInvisiblePip(newPip);
+                }
+                else // already have this pip
+                {
+                    wantedPip.SetInvisiblePip(negativeEnd.GetChild(i - 1));
+                }
+            }
+            else // i dont want this pip
+            {
+                if (i <= currentPipCount) // but i have it currently
+                {
+                    Destroy(negativeEnd.GetChild(i - 1).gameObject);
+                }
+            }
+        }
+
+        ForceUpdateCanvas();
+
+        yield return new WaitForEndOfFrame();
+
+        foreach (VisualPip pip in positiveVisualPips)
+            pip.GoToInvisiblePip();
+        foreach (VisualPip pip in negativeVisualPips)
+            pip.GoToInvisiblePip();
+
+        CorrectAllPointText();
+    }
+
+    private IEnumerator InitializePipState(BackGammonChoiceState pipsState)
     {
         this.currentState = pipsState;
 
@@ -161,6 +405,10 @@ public class BoardViewManager : MonoBehaviour
         DestroyAllVisualPips();
 
         pipsMoving.Clear();
+
+        int positiveFinishedCount = 15 - pipsState.myEatenCount;
+        int negativeFinishedCount = 15 - pipsState.enemyEatenCount;
+
 
         for (int i = 0; i < pipsState.board.Length; i++)
         {
@@ -176,8 +424,16 @@ public class BoardViewManager : MonoBehaviour
 
 
                 VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-
-                newVisualPip.ChangeColor((pipsState.board[i] > 0) ? pipColor1 : pipColor2); // set correct color
+                if (pipsState.board[i] > 0)
+                {
+                    newVisualPip.SetColor(pipColor1);
+                    positiveFinishedCount--;
+                }
+                else
+                {
+                    newVisualPip.SetColor(pipColor2);
+                    negativeFinishedCount--;
+                }
                 newVisualPip.SetSize(pipSize); // set correct size
                 newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
             }
@@ -190,7 +446,7 @@ public class BoardViewManager : MonoBehaviour
             invisibleRect.sizeDelta = pipSize;
 
             VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-            newVisualPip.ChangeColor(pipColor1); // set correct color
+            newVisualPip.SetColor(pipColor1); // set correct color
             newVisualPip.SetSize(pipSize); // set correct size
             newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
         }
@@ -201,28 +457,56 @@ public class BoardViewManager : MonoBehaviour
             invisibleRect.sizeDelta = pipSize;
 
             VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-            newVisualPip.ChangeColor(pipColor2); // set correct color
+            newVisualPip.SetColor(pipColor2); // set correct color
+            newVisualPip.SetSize(pipSize); // set correct size
+            newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
+        }
+
+        for (int i = 0; i < positiveFinishedCount; i++)
+        {
+            GameObject newPip = Instantiate(pipPrefab, positiveEnd);
+            RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
+            invisibleRect.sizeDelta = pipSize;
+
+            VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
+            newVisualPip.SetColor(pipColor1); // set correct color
+            newVisualPip.SetSize(pipSize); // set correct size
+            newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
+        }
+        for (int i = 0; i < negativeFinishedCount; i++)
+        {
+            GameObject newPip = Instantiate(pipPrefab, negativeEnd);
+            RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
+            invisibleRect.sizeDelta = pipSize;
+
+            VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
+            newVisualPip.SetColor(pipColor2); // set correct color
             newVisualPip.SetSize(pipSize); // set correct size
             newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
         }
 
         ForceUpdateCanvas();
 
+        yield return new WaitForEndOfFrame();
+
         foreach (Transform pip in visualPipHolder)
             pip.GetComponent<VisualPip>().GoToInvisiblePip();
+
+        CorrectAllPointText();
     }
 
-    public void InitializeDeafualtPips()
+    public IEnumerator InitializeDeafualtPips()
     {
-        InitializePipState(new BackGammonChoiceState());
+        yield return StartCoroutine(InitializePipStateV2(new BackGammonChoiceState()));
     }
 
-    public void InitializeNewState(BackGammonChoiceState newState)
+    public IEnumerator InitializeNewState(BackGammonChoiceState newState)
     {
         if (newState.Equals(currentState) == false)
         {
-            InitializePipState(newState);
+            yield return StartCoroutine(InitializePipStateV2(newState));
         }
+        yield return 0;
     }
 
     private void SetDiceValues(params byte[] dice)
@@ -235,7 +519,7 @@ public class BoardViewManager : MonoBehaviour
             allDice[1].SetEnabled(true);
             allDice[1].SetDieValue(dice[0]);
             allDice[1].SetUsed(false);
-            
+
             allDice[2].SetEnabled(true);
             allDice[2].SetDieValue(dice[1]);
             allDice[2].SetUsed(false);
@@ -380,6 +664,14 @@ public class BoardViewManager : MonoBehaviour
         yield return StartCoroutine(HelperSpace.HelperMethods.WaitXFrames(2)); // wait 2 frames so that IsStationary has time to refresh...
         yield return new WaitUntil(() => IsStationary);
 
+        BackGammonChoiceState currentStateCopy = (BackGammonChoiceState)currentState.Copy();
+        List<(byte, bool, bool)> dice = new List<(byte, bool, bool)>();
+        foreach (VisualDie die in allDice)
+        {
+            dice.Add(((byte)die.GetDieValue(), die.IsEnabled(), die.IsUsed()));
+        }
+        movesMade.Push(new UndoStateSave(currentStateCopy, dice));
+
         DieUsedInMove(indexFrom, indexTo, isPositivePlayer);
 
         Transform invisiblePip = null;
@@ -415,6 +707,7 @@ public class BoardViewManager : MonoBehaviour
         int newSiblingIndex = 0;
         if (indexTo == -1)
         {
+            invisiblePip.GetComponent<InvisiblePip>().SetTextAbsolute("");
             if (isPositivePlayer)
                 newParent = positiveEnd;
             else
@@ -454,24 +747,47 @@ public class BoardViewManager : MonoBehaviour
             }
         }
 
+        invisiblePip.SetParent(newParent);
+        invisiblePip.SetSiblingIndex(newSiblingIndex);
+
         currentState.myPieces.Clear();
         currentState.enemyPieces.Clear();
 
         for (int i = 0; i < 24; i++)
         {
             if (currentState.board[i] > 0)
+            {
                 currentState.myPieces.Add((byte)i);
+            }
             else if (currentState.board[i] < 0)
+            {
                 currentState.enemyPieces.Add((byte)i);
+            }
         }
 
-        invisiblePip.SetParent(newParent);
-        invisiblePip.SetSiblingIndex(newSiblingIndex);
+        // set so that the numbers on the pips are correct before the end of movement
+        foreach (byte index in currentState.myPieces)
+        {
+            int zone = index / 6;
+
+            BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
+            BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
+            parentPoint.SetCorrectNumberTextAtStartOfMovement();
+        }
+        foreach (byte index in currentState.enemyPieces)
+        {
+            int zone = index / 6;
+            BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
+            BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
+            parentPoint.SetCorrectNumberTextAtStartOfMovement();
+        }
 
         yield return StartCoroutine(HelperSpace.HelperMethods.WaitXFrames(2)); // wait 2 frames so that IsStationary has time to refresh...
         yield return new WaitUntil(() => IsStationary);
+
+        CorrectAllPointText();
     }
-    
+
     public IEnumerator DoMoves(BackGammonChanceAction action, bool isPositivePlayer)
     {
         print("Is stationary: " + IsStationary);
@@ -487,6 +803,43 @@ public class BoardViewManager : MonoBehaviour
                 int to = movement.Item2 == -1 ? -1 : 23 - movement.Item2;
                 yield return StartCoroutine(DoMove(from, to, isPositivePlayer));
             }
+        }
+    }
+
+    public (BackGammonChoiceState, List<byte>) UndoMove()
+    {
+        UndoStateSave getToState = movesMade.Pop();
+        List<byte> newDiesLeft = new List<byte>();
+        for (int i = 0; i < 4; i++)
+        {
+            allDice[i].SetEnabled(getToState.dice[i].Item2);
+            if (getToState.dice[i].Item2)
+            {
+                allDice[i].SetDieValue(getToState.dice[i].Item1);
+                allDice[i].SetUsed(getToState.dice[i].Item3);
+
+                if (getToState.dice[i].Item3 == false)
+                    newDiesLeft.Add(getToState.dice[i].Item1);
+
+            }
+        }
+        return (getToState.state, newDiesLeft);
+    }
+
+    public void ResetUndoMoves()
+    {
+        movesMade.Clear();
+    }
+
+    private class UndoStateSave
+    {
+        public BackGammonChoiceState state;
+        public List<(byte, bool, bool)> dice;
+
+        public UndoStateSave(BackGammonChoiceState state, List<(byte, bool, bool)> dice)
+        {
+            this.state = state;
+            this.dice = dice;
         }
     }
 }

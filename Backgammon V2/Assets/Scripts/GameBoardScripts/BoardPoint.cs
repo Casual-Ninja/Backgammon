@@ -48,4 +48,26 @@ public class BoardPoint : MonoBehaviour
     {
         GetPip(PipCount() - 1).GetComponent<InvisiblePip>().visualPip.SetHighlight(highlight);
     }
+
+    public void SetCorrectNumberText()
+    {
+        for (int i = 0; i < pipHolder.childCount; i++)
+        {
+            if (i <= 4 || i != pipHolder.childCount - 1)
+                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAbsolute("");
+            else
+                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAbsolute((i + 1).ToString());
+        }
+    }
+
+    public void SetCorrectNumberTextAtStartOfMovement()
+    {
+        for (int i = 0; i < pipHolder.childCount; i++)
+        {
+            if (i <= 4 || i != pipHolder.childCount - 1)
+                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAtStartOfMovement("");
+            else
+                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAtStartOfMovement((i + 1).ToString());
+        }
+    }
 }

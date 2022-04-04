@@ -6,6 +6,8 @@ using UnityEngine;
 public class InputManager : MonoBehaviour
 {
     public static InputManager instance;
+
+    [SerializeField] private GameObject undoButton;
     
     private int selectedIndex = -2;
 
@@ -111,6 +113,10 @@ public class InputManager : MonoBehaviour
                 selectedIndex = -2;
             }
         }
+        else
+        {
+            print($"Pressed but: waiting -> {waitingForInput} isStationary -> {BoardViewManager.instance.IsStationary}");
+        }
     }
 
     private void CalculateAllowedMoves(BackGammonChoiceState choiceState, List<byte> diesLeft)
@@ -161,12 +167,43 @@ public class InputManager : MonoBehaviour
         print("Dies left: " + HelperSpace.HelperMethods.ListToString(diesLeft));
     }
 
+    private IEnumerator UndoButton()
+    {
+        if (currentlyMadeActions.Count > 0)
+        {
+            (BackGammonChoiceState, List<byte>) newState = BoardViewManager.instance.UndoMove();
+            yield return StartCoroutine(BoardViewManager.instance.InitializeNewState(newState.Item1));
+
+            currentlyMadeActions = new BackGammonChanceAction(currentlyMadeActions.indexes, currentlyMadeActions.Count - 1);
+            
+            if (selectedIndex != -2)
+            {
+                SetHighlightAllowedPointsFromIndex(selectedIndex, false);
+                selectedIndex = -2;
+            }
+
+            diesLeft = new List<byte>(newState.Item2);
+
+            CalculateAllowedMoves(newState.Item1, diesLeft);
+
+            BoardViewManager.instance.HighlightPips(true, highlightedIndexes);
+        }
+    }
+
+    public void PressedUndo()
+    {
+        StartCoroutine(UndoButton());
+    }
+
     public IEnumerator GetInput(BackGammonChoiceState choiceState, BackGammonChanceState chanceState, BackGammonChanceAction insertedInput)
     {
         this.legalActions = chanceState.GetLegalActions(choiceState);
 
         yield return StartCoroutine(HelperSpace.HelperMethods.WaitXFrames(2));
         yield return new WaitUntil(() => BoardViewManager.instance.IsStationary);
+
+        undoButton.SetActive(true);
+        BoardViewManager.instance.ResetUndoMoves();
 
         print("Started getting input");
         waitingForInput = true;
@@ -200,5 +237,6 @@ public class InputManager : MonoBehaviour
             insertedInput.indexes[i] = currentlyMadeActions.indexes[i];
         }
         waitingForInput = false;
+        undoButton.SetActive(false);
     }
 }

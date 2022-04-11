@@ -6,6 +6,7 @@ using System.Net;
 using GAME;
 using System.Threading;
 using UnityEngine;
+using System.Security.Cryptography;
 
 namespace BackGammonUser
 {
@@ -27,7 +28,8 @@ namespace BackGammonUser
         CreateAcount = 702,
         AccountInformationError = 703,
         AccountInformationOk = 704,
-        MoveError = 800
+        MoveError = 800,
+        RSAEncryptionParamaters = 900
     }
 
     public class InformationContainer
@@ -114,6 +116,12 @@ namespace BackGammonUser
 
         public bool IsConnected { get { return socket == null ? false : socket.Connected; } }
 
+        public void CloseSocket()
+        {
+            if (socket != null)
+                socket.Close();
+        }
+
         public bool inGame { get; set; }
         public bool isPlayerTurn { get; set; }
         public BackGammonChanceState state { get; set; }
@@ -188,6 +196,8 @@ namespace BackGammonUser
                 if (dataToSendNextPush != "")
                 {
                     byte[] encodedData = EncodeString(dataToSendNextPush);
+
+                    Debug.Log("Physically sending:\n" + HelperSpace.HelperMethods.ArrayToString(encodedData));
                     socket.Send(encodedData);
                     dataToSendNextPush = "";
                 }
@@ -284,8 +294,9 @@ namespace BackGammonUser
                 {
                     CheckForMessages();
                 }
-                catch
+                catch (Exception exception)
                 {
+                    Debug.Log(exception);
                     DisconnectedFromServer();
                     break;
                 }
@@ -333,12 +344,13 @@ namespace BackGammonUser
 
         public void LoginToAccount()
         {
-            AddDataToSend(username + "," + password, MessageType.LoggInToAcount);
+            string encryptedPassword = EncryptionHandler.RSAEncrypt(password);
+            AddDataToSend(username + "," + encryptedPassword, MessageType.LoggInToAcount);
         }
 
         public void CreateAccount()
         {
-            AddDataToSend(username + ',' + password, MessageType.CreateAcount);
+            AddDataToSend(username + ',' + EncryptionHandler.RSAEncrypt(password), MessageType.CreateAcount);
         }
 
         public void SendMoveToServer(GAME.Action action)
@@ -366,7 +378,7 @@ namespace BackGammonUser
         {
             PushData();
             DisconnectedFromServer();
-            socket.Close();
+            CloseSocket();
             inGame = false;
         }
 
@@ -381,7 +393,15 @@ namespace BackGammonUser
         {
             lock (serverInformation)
             {
-                serverInformation.Enqueue((message, messageType));
+                if (messageType == MessageType.RSAEncryptionParamaters)
+                {
+                    RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
+                    rsa.FromXmlString(message);
+                    EncryptionHandler.Initialize(rsa);
+                }
+                else
+                    serverInformation.Enqueue((message, messageType));
+
             }
         }
     }

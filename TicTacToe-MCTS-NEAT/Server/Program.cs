@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using TicTacToe_MCTS_NEAT;
+using System.Security.Cryptography;
 
 namespace Server
 {
@@ -81,12 +82,20 @@ namespace Server
 
         private static void AcceptClients()
         {
+            RSACryptoServiceProvider RSA = new RSACryptoServiceProvider();
+            EncryptionHandler.Initialize(RSA);
+
             tcpListener.Start();
             Console.WriteLine("Started lisntening...");
 
             Console.WriteLine("I am listening for connections on " +
             IPAddress.Parse(((IPEndPoint)tcpListener.LocalEndpoint).Address.ToString()) +
             " on port number " + ((IPEndPoint)tcpListener.LocalEndpoint).Port.ToString());
+
+            Console.WriteLine("Check zone ----------");
+
+            Console.WriteLine("End Check zone ------");
+
             while (true)
             {
                 Thread.Sleep(100); // check for connection every 0.1 seconds

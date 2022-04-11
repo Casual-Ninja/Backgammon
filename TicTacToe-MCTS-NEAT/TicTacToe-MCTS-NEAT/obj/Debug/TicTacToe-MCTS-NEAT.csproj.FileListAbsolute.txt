@@ -50,3 +50,7 @@ D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEA
 D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\obj\Debug\TicTacToe-MCTS-NEAT.exe
 D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\obj\Debug\TicTacToe-MCTS-NEAT.pdb
 D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\obj\Debug\TicTacToe-MCTS-NEAT.csprojAssemblyReference.cache
+D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\bin\Debug\Microsoft.AspNetCore.Cryptography.Internal.dll
+D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\bin\Debug\Microsoft.AspNetCore.Cryptography.KeyDerivation.dll
+D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\bin\Debug\Microsoft.AspNetCore.Cryptography.Internal.xml
+D:\Users\Owner\GitHubRepos\BackgammonRepo\TicTacToe-MCTS-NEAT\TicTacToe-MCTS-NEAT\bin\Debug\Microsoft.AspNetCore.Cryptography.KeyDerivation.xml

@@ -9,6 +9,8 @@ using MCTS;
 using System.Threading;
 using TicTacToe_MCTS_NEAT;
 using System.Text.Json.Serialization;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
 namespace BackGammonUser
 { 
@@ -30,7 +32,8 @@ namespace BackGammonUser
         CreateAcount = 702,
         AccountInformationError = 703,
         AccountInformationOk = 704,
-        MoveError = 800
+        MoveError = 800,
+        RSAEncryptionParamaters = 900
     }
 
     public class InformationContainer
@@ -114,9 +117,16 @@ namespace BackGammonUser
         protected Random rnd;
         public string username { get; protected set; }
         public string password { get; protected set; }
+        public string passwordSalt { get; protected set; }
         protected Socket socket;
 
         public bool IsConnected { get { return socket == null ? false : socket.Connected; } }
+
+        protected void CloseSocket()
+        {
+            if (socket != null)
+                socket.Close();
+        }
 
         public bool inGame { get; set; }
         public bool isPlayerTurn { get; set; }
@@ -237,139 +247,6 @@ namespace BackGammonUser
         }
     }
 
-    public class ClientUser : User
-    {
-        private Queue<(string, MessageType)> serverInformation = new Queue<(string, MessageType)>();
-
-        public bool TryGetMessage(out (string, MessageType) message)
-        {
-            message = ("", 0);
-
-            bool isWaiting;
-
-            lock (serverInformation)
-            {
-                if (serverInformation.Count > 0)
-                {
-                    isWaiting = true;
-                    message = serverInformation.Dequeue();
-                }
-                else
-                {
-                    isWaiting = false;
-                    message = ("", 0);
-                }
-            }
-            return isWaiting;
-        }
-
-        public ClientUser(string userName, string passWord)
-        {
-            if (rnd == null)
-                rnd = new Random();
-
-            this.username = userName;
-            this.password = passWord;
-
-            this.socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-        }
-
-        public void SetAccountInfo(string username, string password)
-        {
-            this.username = username;
-            this.password = password;
-        }
-        
-        private void ManageSocketData(object mainThread)
-        {
-            Thread actualValue = (Thread)mainThread;
-            while (actualValue.IsAlive)
-            {
-                Thread.Sleep(100);
-                try
-                {
-                    PushData();
-                    CheckForMessages();
-                }
-                catch
-                {
-                    Console.WriteLine("Disconnecting from server because of socket error");
-                    DisconnectedFromServer();
-                    break;
-                }
-            }
-        }
-
-        private void DisconnectedFromServer()
-        {
-            serverInformation.Enqueue(("", MessageType.DisconnectFromServer));
-        }
-
-        public void LoginToServer()
-        {
-            if (!socket.Connected)
-            {
-                socket.Connect(IPAddress.Loopback, 12357); // the port used is 12357
-
-                Thread checkForMessagesThread = new Thread(ManageSocketData);
-                checkForMessagesThread.Start(Thread.CurrentThread);
-            }
-        }
-
-        public void LoginToAccount()
-        {
-            AddDataToSend(username + "," + password, MessageType.LoggInToAcount);
-        }
-
-        public void CreateAccount()
-        {
-            AddDataToSend(username + ',' + password, MessageType.CreateAcount);
-        }
-
-        public void SendMoveToServer(GAME.Action action)
-        {
-            AddDataToSend(action.ProtocolInformation(), action.messageType);
-        }
-        
-        public void GetLatestUserInformation()
-        {
-            AddDataToSend(MessageType.InformationContainer.ToString(), MessageType.RequestData);
-        }
-
-        public void StartNewGame()
-        {
-            AddDataToSend("", MessageType.StartGame);
-        }
-        
-        public void QuitCurrentGame()
-        {
-            AddDataToSend("", MessageType.StopGame);
-            inGame = false;
-        }
-
-        public void DisconnectFromServer()
-        {
-            AddDataToSend("", MessageType.DisconnectFromServer);
-            socket.Close();
-            inGame = false;
-        }
-
-        public void SetStartGameState(BackGammonChanceState state)
-        {
-            this.parentState = new BackGammonChoiceState(); // this is the starting position...
-            this.state = state;
-            this.inGame = true;
-        }
-
-        protected override void ParseMessage(string message, MessageType messageType)
-        {
-            lock (serverInformation)
-            {
-                serverInformation.Enqueue((message, messageType));
-            }
-        }
-    }
-
     public class ServerUser : User
     {
         public const string DataPath = "Data\\";
@@ -389,25 +266,48 @@ namespace BackGammonUser
                 rnd = new Random();
 
             this.socket = socket;
+
             lock (knownClients)
             {
                 this.knownClients = knownClients;
             }
+
+            AddDataToSend(EncryptionHandler.publicKey, MessageType.RSAEncryptionParamaters);
+            PushData();
         }
 
         private void LoggInToAccount(string accountInfo)
         {
-            string[] accountInformationSplit = accountInfo.Split(',');
-            if (accountInformationSplit.Length != 2) // if its not 2 then its in incorect format
+            int firstChar = accountInfo.IndexOf(',');
+            if (firstChar == -1)
             {
-                AddDataToSend("Incorrect Username or Password", MessageType.AccountInformationError);
+                AddDataToSend("Incorrect Format of account information", MessageType.AccountInformationError);
                 return;
             }
+
+            string[] accountInformationSplit = new string[] { accountInfo.Substring(0, firstChar), accountInfo.Remove(0, firstChar + 1)};
+
             string checkAccountName = accountInformationSplit[0];
-            string checkAccountPassWord = accountInformationSplit[1];
-            if (checkAccountName.Length < 5 || checkAccountPassWord.Length < 5) // password and name must be longer than 0
+
+            if (checkAccountName.Contains(","))
             {
-                AddDataToSend("Incorrect Username or Password", MessageType.AccountInformationError);
+                AddDataToSend("Username cannot contain ','", MessageType.AccountInformationError);
+                return;
+            }
+
+            UnicodeEncoding encoder = new UnicodeEncoding();
+            string checkAccountPassWord = EncryptionHandler.RSADecrypt(accountInformationSplit[1]);
+            Console.WriteLine("information: " + checkAccountName + " || " + checkAccountPassWord);
+
+            if (checkAccountName.Length < 5 || checkAccountPassWord.Length < 5) // password and name must be longer than 5
+            {
+                AddDataToSend("Password and Username length must be greater than 4", MessageType.AccountInformationError);
+                return;
+            }
+
+            if (checkAccountPassWord.Contains(","))
+            {
+                AddDataToSend("Password cannot contain ','", MessageType.AccountInformationError);
                 return;
             }
 
@@ -422,10 +322,25 @@ namespace BackGammonUser
             if (accountExists)
             {
                 Console.WriteLine("Account exists...");
-                if (savedDataOfUser.password == checkAccountPassWord)
+
+                // generate a 128-bit salt using a cryptographically strong random sequence of nonzero values
+                this.passwordSalt = savedDataOfUser.salt;
+                byte[] salt = Convert.FromBase64String(this.passwordSalt);
+                Console.WriteLine($"Salt: {passwordSalt}");
+
+                // derive a 256-bit subkey (use HMACSHA256 with 310,000 iterations)
+                this.password = Convert.ToBase64String(KeyDerivation.Pbkdf2(
+                    password: checkAccountPassWord,
+                    salt: salt,
+                    prf: KeyDerivationPrf.HMACSHA256,
+                    iterationCount: 310000,
+                    numBytesRequested: 256 / 8));
+                Console.WriteLine($"Hashed: {this.password}");
+
+                if (savedDataOfUser.password == this.password)
                 {
                     this.username = checkAccountName;
-                    this.password = checkAccountPassWord;
+                    this.password = this.password;
 
                     this.information = new InformationContainer(savedDataOfUser.informationDict);
 
@@ -433,7 +348,7 @@ namespace BackGammonUser
                 }
                 else // correct username but incorrect password
                 {
-                    Console.WriteLine($"Incorrect pasword {savedDataOfUser.password} != {checkAccountPassWord}");
+                    Console.WriteLine($"Incorrect pasword {savedDataOfUser.password} != {this.password}");
                     AddDataToSend("Incorrect Username or Password", MessageType.AccountInformationError);
                 }
             }
@@ -453,7 +368,7 @@ namespace BackGammonUser
                 return;
             }
             string checkAccountName = accountInformationSplit[0];
-            string checkAccountPassWord = accountInformationSplit[1];
+            string checkAccountPassWord = EncryptionHandler.RSADecrypt(accountInformationSplit[1]);
             if (checkAccountName.Length < 5 || checkAccountPassWord.Length < 5 || checkAccountName.Length > 15 || checkAccountPassWord.Length > 15) // password and name must be longer than 4
             {
                 AddDataToSend("Password and Username Length must be between 5 and 15 characters.", MessageType.AccountInformationError);
@@ -462,28 +377,53 @@ namespace BackGammonUser
 
             (string, MessageType) messageToSend;
 
+            bool accountExists = false;
             lock (knownClients)
             {
-                if (knownClients.ContainsKey(checkAccountName)) // does this username already exist?
+                accountExists = knownClients.ContainsKey(checkAccountName);
+            }
+            if (accountExists) // does this username already exist?
+            {
+                messageToSend = ("Username already exists!", MessageType.AccountInformationError);
+            }
+            else
+            {
+                this.username = checkAccountName;
+
+                // generate a 128-bit salt using a cryptographically strong random sequence of nonzero values
+                byte[] salt = new byte[128 / 8];
+                using (var rngCsp = new RNGCryptoServiceProvider())
                 {
-                    messageToSend = ("Username already exists!", MessageType.AccountInformationError);
+                    rngCsp.GetNonZeroBytes(salt);
                 }
-                else
+                this.passwordSalt = Convert.ToBase64String(salt);
+                Console.WriteLine($"Salt: {passwordSalt}");
+
+                // derive a 256-bit subkey (use HMACSHA256 with 310,000 iterations)
+                string hashed = Convert.ToBase64String(KeyDerivation.Pbkdf2(
+                    password: checkAccountPassWord,
+                    salt: salt,
+                    prf: KeyDerivationPrf.HMACSHA256,
+                    iterationCount: 310000,
+                    numBytesRequested: 256 / 8));
+                Console.WriteLine($"Hashed: {hashed}");
+
+
+                this.password = hashed;
+
+                this.information = new InformationContainer();
+                this.inGame = false;
+
+                SavingServerUser newUserSave = new SavingServerUser(this);
+
+                lock (knownClients)
                 {
-                    this.username = checkAccountName;
-                    this.password = checkAccountPassWord;
-
-                    this.information = new InformationContainer();
-                    this.inGame = false;
-
-                    SavingServerUser newUserSave = new SavingServerUser(this);
-
                     this.knownClients.Add(this.username, newUserSave); // create this account
-
-                    SaveAllUserData();
-
-                    messageToSend = ("", MessageType.AccountInformationOk);
                 }
+
+                SaveAllUserData();
+
+                messageToSend = ("", MessageType.AccountInformationOk);
             }
 
             AddDataToSend(messageToSend.Item1, messageToSend.Item2);
@@ -681,6 +621,7 @@ namespace BackGammonUser
         protected override void ParseMessage(string message, MessageType messageType)
         {
             Console.WriteLine(message + " " + messageType);
+
             switch(messageType)
             {
                 case MessageType.LoggInToAcount:
@@ -703,7 +644,7 @@ namespace BackGammonUser
                     break;
                 case MessageType.DisconnectFromServer:
                     StopGame();
-                    this.socket.Close();
+                    CloseSocket();
                     break;
                 default:
                     Console.WriteLine("Client sent unknown Message type");
@@ -754,6 +695,7 @@ namespace BackGammonUser
     {
         public string username { get; set; }
         public string password { get; set; }
+        public string salt { get; set; }
 
         public Dictionary<InformationContainer.Information, double> informationDict { get; set; }
 
@@ -761,7 +703,16 @@ namespace BackGammonUser
         {
             this.username = user.username;
             this.password = user.password;
+            this.salt = user.passwordSalt;
             this.informationDict = user.information.Copy().informationDict;
+        }
+
+        public SavingServerUser(string username, string password, string salt, InformationContainer information)
+        {
+            this.username = username;
+            this.password = password;
+            this.salt = salt;
+            this.informationDict = information.Copy().informationDict;
         }
 
         [JsonConstructor]

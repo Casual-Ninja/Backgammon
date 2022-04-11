@@ -62,6 +62,8 @@ namespace HelperSpace
 
         public static string ArrayToString<T>(T[] array)
         {
+            if (array == null)
+                return "null";
             string s = "[";
 
             foreach (T t in array)

@@ -51,6 +51,7 @@ public class MainMenuManager : MonoBehaviour
             return null;
         if (val == 1)
             return logInToAccountMenu;
+        OnlineGameManager.GetUser().CloseSocket();
         return startMenu;
     }
     
@@ -98,7 +99,7 @@ public class MainMenuManager : MonoBehaviour
     private void OnApplicationQuit()
     {
         OnlineGameManager.GetUser().DisconnectFromServer();
-        print("topped playing");
+        print("stopped playing");
     }
 #endif
 }

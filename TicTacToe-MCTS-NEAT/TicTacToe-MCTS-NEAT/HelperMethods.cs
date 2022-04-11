@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace HelperSpace
 {
-    static class HelperMethods
+    public static class HelperMethods
     {
         private static Random privateRandom = new Random();
         public static int GetRandomSeed()
@@ -51,6 +51,8 @@ namespace HelperSpace
 
         public static string ArrayToString<T>(T[] array)
         {
+            if (array == null)
+                return "null";
             string s = "[";
 
             foreach (T t in array)

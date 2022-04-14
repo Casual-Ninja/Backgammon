@@ -1,11 +1,13 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using BackGammonUser;
 using System.Threading;
+using TMPro;
+using System.Net;
 
 public class MainMenuManager : MonoBehaviour
 {
     [SerializeField] private Menu startMenu, logInToAccountMenu, serverMenu;
+    [SerializeField] private TMP_InputField ipInputField;
 
     public static MainMenuManager instance;
 
@@ -14,6 +16,7 @@ public class MainMenuManager : MonoBehaviour
     private static Thread mainThread = Thread.CurrentThread;
 
     private HelperSpace.ThreadIntClass isConnected = new HelperSpace.ThreadIntClass();
+    private IPAddress serverAddress;
 
     private void Awake()
     {
@@ -65,7 +68,7 @@ public class MainMenuManager : MonoBehaviour
             print("Trying to connect to server");
             lock (mainThread)
             {
-                user.LoginToServer(mainThread);
+                user.LoginToServer(serverAddress, mainThread);
             }
             SetFinishedConnecting(1);
         }
@@ -76,9 +79,12 @@ public class MainMenuManager : MonoBehaviour
         }
     }
 
-    public void PressedLogIn()
+    public void PressedConnectToServer()
     {
-        if (OnlineGameManager.GetUser() != null)
+        if (IPAddress.TryParse(ipInputField.text, out serverAddress) == false)
+            return;
+
+        if (OnlineGameManager.GetUser() != null) // doesn't really matter, but why not make sure?
             OnlineGameManager.GetUser().DisconnectFromServer();
 
         ClientUser newUser = new ClientUser("", "");
@@ -98,7 +104,9 @@ public class MainMenuManager : MonoBehaviour
 # if UNITY_EDITOR
     private void OnApplicationQuit()
     {
-        OnlineGameManager.GetUser().DisconnectFromServer();
+        ClientUser user = OnlineGameManager.GetUser();
+        if (user != null)
+            OnlineGameManager.GetUser().DisconnectFromServer();
         print("stopped playing");
     }
 #endif

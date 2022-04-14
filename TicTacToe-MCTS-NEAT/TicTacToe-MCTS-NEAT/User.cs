@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Net.Sockets;
-using System.Net;
 using System.Diagnostics;
 using GAME;
 using MCTS;
-using System.Threading;
 using TicTacToe_MCTS_NEAT;
 using System.Text.Json.Serialization;
 using System.Security.Cryptography;
@@ -259,8 +257,9 @@ namespace BackGammonUser
 
 
         private Dictionary<string, SavingServerUser> knownClients;
+        private HashSet<string> onlineUsers;
 
-        public ServerUser(Socket socket, Dictionary<string, SavingServerUser> knownClients)
+        public ServerUser(Socket socket, Dictionary<string, SavingServerUser> knownClients, HashSet<string> onlineUsers)
         {
             if (rnd == null)
                 rnd = new Random();
@@ -270,6 +269,10 @@ namespace BackGammonUser
             lock (knownClients)
             {
                 this.knownClients = knownClients;
+            }
+            lock (onlineUsers)
+            {
+                this.onlineUsers = onlineUsers;
             }
 
             AddDataToSend(EncryptionHandler.publicKey, MessageType.RSAEncryptionParamaters);
@@ -293,6 +296,15 @@ namespace BackGammonUser
             {
                 AddDataToSend("Username cannot contain ','", MessageType.AccountInformationError);
                 return;
+            }
+
+            lock (onlineUsers)
+            {
+                if (onlineUsers.Contains(checkAccountName))
+                {
+                    AddDataToSend("Account already logged in!", MessageType.AccountInformationError);
+                    return;
+                }
             }
 
             UnicodeEncoding encoder = new UnicodeEncoding();

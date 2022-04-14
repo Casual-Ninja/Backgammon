@@ -488,10 +488,7 @@ namespace GAME
 
         public override MessageType messageType
         {
-            get
-            {
-                return MessageType.ChanceState;
-            }
+            get { return MessageType.ChanceState; }
         }
 
         public BackGammonChanceState(Action action)
@@ -506,11 +503,28 @@ namespace GAME
 
         public override bool IsChanceState() => true;
 
+
+        public static int VersionDifferenceCount = 0;
         public override List<Action> GetLegalActions(State prevState)
         {
             List<Action> legalActions = GetLegalActionsInside(prevState);
             if (legalActions.Count == 0)
                 legalActions.Add(new BackGammonChanceAction());
+
+            //List<Action> legalActionsV2 = GetLegalActionsInsideV2(prevState);
+            //if (legalActionsV2.Count == 0)
+            //    legalActionsV2.Add(new BackGammonChanceAction());
+
+            //if (HelperMethods.HoldSameItems(legalActions, legalActionsV2) == false)
+            //{
+            //    Console.WriteLine("The board with the problem:\n" + prevState);
+            //    Console.WriteLine("Dice: " + dice);
+            //    Console.WriteLine($"Current legal actions {legalActions.Count}:\n{HelperMethods.ListToString(legalActions)}");
+            //    Console.WriteLine($"new legal actions {legalActionsV2.Count}:\n{HelperMethods.ListToString(legalActionsV2)}");
+
+            //    throw new Exception("They are not the same!");
+            //    VersionDifferenceCount++;
+            //}
 
             //List<(BackGammonChoiceState, Action)> newStates = new List<(BackGammonChoiceState, Action)>();
             //foreach (Action action in legalActions)
@@ -567,10 +581,10 @@ namespace GAME
                     {
                         dCount -= Math.Min((byte)4, state.myEatenCount);
 
-                        switch (state.board[dice.dice1 - 1])
+                        switch (state.board[dice.dice1 - 1]) // what is on the position i want to enter?
                         {
-                            case -1:
-                                state.board[dice.dice1 - 1] = 1;
+                            case -1: // an enemy piece
+                                state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
                                 state.enemyPieces.Remove((byte)(dice.dice1 - 1)); // remove it since it no longer going to be there
                                 for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
                                     if (state.myPieces[i] >= dice.dice1) // if i passed the current index
@@ -579,8 +593,8 @@ namespace GAME
                                         break;
                                     }
                                 break;
-                            case 0:
-                                state.board[dice.dice1 - 1] += 1;
+                            case 0: // empty 
+                                state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
                                 for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
                                     if (state.myPieces[i] >= dice.dice1) // if i passed the current index
                                     {
@@ -588,8 +602,8 @@ namespace GAME
                                         break;
                                     }
                                 break;
-                            default:
-                                state.board[dice.dice1 - 1] += 1;
+                            default: // i have my pieces
+                                state.board[dice.dice1 - 1] += (sbyte)(4 - dCount);
                                 break;
                         }
                     }
@@ -766,6 +780,7 @@ namespace GAME
             return legalActions;
         }
 
+        // currently is a copy of "GetLegalActionsInside"
         private List<Action> GetLegalActionsInsideV2(State prevState)
         {
             BackGammonChoiceState state = new BackGammonChoiceState((BackGammonChoiceState)prevState);
@@ -784,10 +799,10 @@ namespace GAME
                     {
                         dCount -= Math.Min((byte)4, state.myEatenCount);
 
-                        switch (state.board[dice.dice1 - 1])
+                        switch (state.board[dice.dice1 - 1]) // what is on the position i want to enter?
                         {
-                            case -1:
-                                state.board[dice.dice1 - 1] = 1;
+                            case -1: // an enemy piece
+                                state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
                                 state.enemyPieces.Remove((byte)(dice.dice1 - 1)); // remove it since it no longer going to be there
                                 for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
                                     if (state.myPieces[i] >= dice.dice1) // if i passed the current index
@@ -796,8 +811,8 @@ namespace GAME
                                         break;
                                     }
                                 break;
-                            case 0:
-                                state.board[dice.dice1 - 1] += 1;
+                            case 0: // empty 
+                                state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
                                 for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
                                     if (state.myPieces[i] >= dice.dice1) // if i passed the current index
                                     {
@@ -805,8 +820,8 @@ namespace GAME
                                         break;
                                     }
                                 break;
-                            default:
-                                state.board[dice.dice1 - 1] += 1;
+                            default: // i have my pieces
+                                state.board[dice.dice1 - 1] += (sbyte)(4 - dCount);
                                 break;
                         }
                     }
@@ -833,7 +848,7 @@ namespace GAME
 
                         for (int i = 1; i <= steps; i++)
                         {
-                            towerActionsDict.Add(i * 100 + b, GetActionsV2((sbyte)b, (byte)i, dice.dice1, (byte)state.board[b], state.board));
+                            towerActionsDict.Add(i * 100 + b, GetActions((sbyte)b, (byte)i, dice.dice1, (byte)state.board[b], state));
                             towersListV2.Add(b);
                         }
                     }
@@ -846,7 +861,7 @@ namespace GAME
 
                 List<List<(byte, byte)>> towerMoves2 = TowerMovesListV2(towersListV2, dCount);
 
-                legalActions = GetActionListV2(towerMoves2, towerActionsDict);
+                legalActions = GetActionList(towerMoves2, towerActionsDict);
                 if (legalActions.Count == 0)
                     legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(4)));
 
@@ -1331,74 +1346,6 @@ namespace GAME
             return actions;
         }
 
-        private List<Action> GetActionListV2(List<List<(byte, byte)>> towerMovesList, Dictionary<int, List<Action>> actionsDict)
-        {
-            Console.WriteLine("Tower moves list:");
-            Console.WriteLine(HelperMethods.ListToString(towerMovesList));
-
-            List<Action> actions = new List<Action>();
-
-            HashSet<BackGammonChanceAction> existingActions = new HashSet<BackGammonChanceAction>();
-
-            int maxActionsLength = 0;
-
-            Console.WriteLine("Dict of 14,2: " + HelperMethods.ListToString(actionsDict[214]));
-
-            foreach (List<(byte, byte)> towerMoves in towerMovesList)
-            {
-                List<Action> currActions = actionsDict[(towerMoves[0].Item2 * 100) + towerMoves[0].Item1];
-
-                for (int i = 1; i < towerMoves.Count; i++)
-                {
-                    List<Action> addedActions = actionsDict[(towerMoves[i].Item2 * 100) + towerMoves[i].Item1];
-
-                    if (addedActions.Count != 0)
-                    {
-                        if (currActions.Count == 0)
-                            currActions = addedActions;
-                        else
-                        {
-                            List<Action> newActions = new List<Action>(currActions.Count * addedActions.Count);
-
-                            for (int j = 0; j < currActions.Count; j++)
-                            {
-                                BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
-                                for (int k = 0; k < addedActions.Count; k++)
-                                {
-                                    newActions.Add(new BackGammonChanceAction(currAct, (BackGammonChanceAction)addedActions[k]));
-                                }
-                            }
-
-                            currActions = newActions;
-                        }
-                    }
-                }
-
-                Console.WriteLine($"tower moves {HelperMethods.ListToString(towerMoves)} created: ");
-                Console.WriteLine(HelperMethods.ListToString(currActions));
-
-                foreach (BackGammonChanceAction action in currActions)
-                {
-                    if (action.Count > maxActionsLength)
-                    {
-                        maxActionsLength = action.Count;
-                        existingActions.Clear();
-                        actions.Clear();
-
-                        //existingActions.Add(action);
-                        actions.Add(action);
-                    }
-                    else if (action.Count == maxActionsLength && existingActions.Contains(action) == false)
-                    {
-                        //existingActions.Add(action);
-                        actions.Add(action);
-                    }
-                }
-            }
-
-            return actions;
-        }
-
         /// <summary>
         /// Returns the List of Actions that can be made from that index with that dice
         /// </summary>
@@ -1498,75 +1445,6 @@ namespace GAME
 
             // count == 1 (never smaller than 1 and never bigger than 4)
             lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { (index, (sbyte)(index + dice)), (0, 0), (0, 0), (0, 0) }, 1)); // only possible move (no check since count is accurate)
-            return lst;
-        }
-
-        /// <summary>
-        /// Returns the List of Actions that can be made from that index with that dice
-        /// </summary>
-        /// <param name="index">The index of the pieces that should be checked for actions</param>
-        /// <param name="count">The Amount of actions that should be made with those pieces.</param>
-        /// <param name="dice">The die that will be used</param>
-        /// <param name="pieceCount">The amount of pieces on that index.</param>
-        /// <param name="state">The current board to move from.</param>
-        /// <returns></returns>
-        private List<Action> GetActionsV2(sbyte index, byte count, byte dice, byte pieceCount, sbyte[] board)
-        {
-            List<Action> lst = new List<Action>();
-            if (count == 4)
-            {
-                // if count == 4 i can either:
-                // 1 piece 4 moves
-                // 1 piece 3 moves, 1 piece 1 move
-                // 2 piece 1 move, 1 piece 2 move
-                // 2 piece 2 moves
-                // 4 piece 1 move
-
-                sbyte nextIndex1 = (sbyte)(index + dice);
-
-                if (pieceCount >= 4) // do i have 4 pieces (opt 5)
-                    lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[]
-                    { (index, nextIndex1), (index, nextIndex1), (index, nextIndex1), (index, nextIndex1)}));
-
-                sbyte nextIndex2 = (sbyte)(nextIndex1 + dice);
-                if (nextIndex2 < 24 && board[nextIndex2] >= -1) // can i move twice?
-                {
-                    if (pieceCount >= 2) // do i have 2 pieces (opt 4)
-                    {
-                        lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[]
-                        { (index, nextIndex1), (index, nextIndex1), (nextIndex1, nextIndex2), (nextIndex1, nextIndex2) }));
-
-                        if (pieceCount >= 3) // do i have 3 pieces (opt 3)
-                            lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[]
-                            { (index, nextIndex1), (index, nextIndex1), (index, nextIndex1), (nextIndex1, nextIndex2)}));
-                    }
-
-                    sbyte nextIndex3 = (sbyte)(nextIndex2 + dice);
-                    if (nextIndex3 < 24 && board[nextIndex3] >= -1) // can i move thrice?
-                    {
-                        if (pieceCount >= 2) // do i have 2 pieces (opt 2)
-                        {
-                            lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[]
-                            { (index, nextIndex1), (index, nextIndex1), (nextIndex1, nextIndex2), (nextIndex2, nextIndex3)}));
-                        }
-
-                        sbyte nextIndex4 = (sbyte)(nextIndex3 + dice);
-                        if (nextIndex4 < 24 && board[nextIndex4] >= -1) // can i move 4 times? (opt 1)
-                            lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[]
-                                   { (index, nextIndex1), (nextIndex1, nextIndex2), (nextIndex2, nextIndex3), (nextIndex3, nextIndex4) }));
-                    }
-                }
-                return lst;
-            }
-            else if (count == 3)
-            {
-
-            }
-            else if (count == 2)
-            {
-
-            }
-
             return lst;
         }
 

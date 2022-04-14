@@ -196,8 +196,7 @@ namespace BackGammonUser
                 if (dataToSendNextPush != "")
                 {
                     byte[] encodedData = EncodeString(dataToSendNextPush);
-
-                    Debug.Log("Physically sending:\n" + HelperSpace.HelperMethods.ArrayToString(encodedData));
+                    
                     socket.Send(encodedData);
                     dataToSendNextPush = "";
                 }
@@ -331,11 +330,11 @@ namespace BackGammonUser
             serverInformation.Enqueue(("", MessageType.DisconnectFromServer));
         }
 
-        public void LoginToServer(Thread mainThread)
+        public void LoginToServer(IPAddress serverAdderss, Thread mainThread)
         {
             if (!socket.Connected)
             {
-                socket.Connect(IPAddress.Loopback, 12357); // the port used is 12357
+                socket.Connect(serverAdderss, 12357); // the port used is 12357
 
                 Thread checkForMessagesThread = new Thread(ManageSocketData);
                 checkForMessagesThread.Start(mainThread);

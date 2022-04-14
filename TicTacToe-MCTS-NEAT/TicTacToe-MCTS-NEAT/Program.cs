@@ -21,8 +21,8 @@ namespace User
             //                              0, 0);
 
             //BackGammonChoiceState start = new BackGammonChoiceState(
-            //                              new sbyte[] { -2, -1, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-            //                              0, 0);
+            //                              new sbyte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -1, -5, -2 },
+            //                              5, 0);
 
             ////start.RotateBoard();
 
@@ -50,18 +50,21 @@ namespace User
 
             MCTSNode startNode = new MCTSNode(startDice, parentStartNode);
 
+            Console.WriteLine(parentStartNode);
+
             Stopwatch sw = new Stopwatch();
 
             sw.Start();
             //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(10000, 8);
 
-            MCTSNode bestMove = startNode.BestAction(200000);
+            MCTSNode bestMove = startNode.BestAction(10000);
 
             sw.Stop();
             Console.WriteLine(sw.Elapsed);
 
             ((BackGammonChoiceState)bestMove.GetState()).RotateBoard();
             Console.WriteLine(bestMove);
+            Console.WriteLine("Difference count: " + BackGammonChanceState.VersionDifferenceCount);
 
             //MCTSNode.CHyperParam *= 0.1f;
             //Console.WriteLine(MCTSNode.CHyperParam);

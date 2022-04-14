@@ -15,7 +15,7 @@ namespace Server
         
         private static Dictionary<string, SavingServerUser> knownClients;
 
-        private static List<ServerUser> onlineUsers = new List<ServerUser>();
+        private static HashSet<string> onlineUsers = new HashSet<string>();
 
         private static TcpListener tcpListener;
 
@@ -43,12 +43,6 @@ namespace Server
                 }
             }
 
-
-            IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
-            IPAddress ipAddress = new IPAddress(new byte[] { 0, 0, 0, 0 });
-            Console.WriteLine(ipAddress);
-            tcpListener = new TcpListener(ipAddress, portNumber);
-
             AcceptClients();
         }
 
@@ -57,11 +51,10 @@ namespace Server
             ServerUser theUser = (ServerUser)client;
             lock (onlineUsers)
             {
-                onlineUsers.Add(theUser);
+                onlineUsers.Add(theUser.username);
             }
             while (true)
             {
-                //Thread.Sleep(100); // check for messages and send messages to client every 0.1 seconds
                 try
                 {
                     theUser.CheckForMessages();
@@ -72,7 +65,7 @@ namespace Server
                     SaveLoad.SaveAllDataToDiskInThread();
                     lock (onlineUsers)
                     {
-                        onlineUsers.Remove(theUser);
+                        onlineUsers.Remove(theUser.username);
                         Console.WriteLine($"Removed user because:\n{exception}\nuser count: {onlineUsers.Count}");
                     }
                     break;
@@ -85,16 +78,17 @@ namespace Server
             RSACryptoServiceProvider RSA = new RSACryptoServiceProvider();
             EncryptionHandler.Initialize(RSA);
 
+            IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
+            IPAddress ipAddress = new IPAddress(new byte[] { 0, 0, 0, 0 });
+            Console.WriteLine(ipAddress);
+            tcpListener = new TcpListener(ipAddress, portNumber);
+
             tcpListener.Start();
             Console.WriteLine("Started lisntening...");
 
             Console.WriteLine("I am listening for connections on " +
             IPAddress.Parse(((IPEndPoint)tcpListener.LocalEndpoint).Address.ToString()) +
             " on port number " + ((IPEndPoint)tcpListener.LocalEndpoint).Port.ToString());
-
-            Console.WriteLine("Check zone ----------");
-
-            Console.WriteLine("End Check zone ------");
 
             while (true)
             {
@@ -106,7 +100,7 @@ namespace Server
                     Console.WriteLine("Accepted Request");
 
                     Thread interactingThread = new Thread(InteractWithClient);
-                    interactingThread.Start(new ServerUser(client, knownClients));
+                    interactingThread.Start(new ServerUser(client, knownClients, onlineUsers));
                 }
             }
         }

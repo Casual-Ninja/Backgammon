@@ -8,12 +8,14 @@ namespace TicTacToe_MCTS_NEAT
     {
         private const float preferedPlayScore = 1;
         private const float alternativePlayScore = 0.9f;
+        private static int seed;
 
-        public static void FindBestValueForHyperParamater(int simulationCount)
+        public static void FindBestValueForHyperParamater(float multStart, float multEnd, float multStep,  int simulationCount, int seed)
         {
+            AiTester.seed = seed;
             float actualHyperParamater = MCTSNode.CHyperParam;
 
-            for (float mult = 0.1f; mult <= 2; mult += 0.1f)
+            for (float mult = multStart; mult <= multEnd; mult += multStep)
             {
                 MCTSNode.CHyperParam = actualHyperParamater * mult;
                 Console.WriteLine(MCTSNode.CHyperParam);
@@ -254,7 +256,7 @@ namespace TicTacToe_MCTS_NEAT
 
             MCTSNode startNode = new MCTSNode(startDice, parentOfStart);
 
-            MCTSNode bestMove = startNode.BestAction(simulationCount);
+            MCTSNode bestMove = startNode.BestAction(simulationCount, seed);
 
             //Console.WriteLine(bestMove.GetState());
 

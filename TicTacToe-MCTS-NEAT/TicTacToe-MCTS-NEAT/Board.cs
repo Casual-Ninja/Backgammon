@@ -65,10 +65,10 @@ namespace GAME
             }
         }
 
-        private Action[] allActions = new Action[]
-                                           { new Dice(1, 1), new Dice(2, 2), new Dice(3, 3), new Dice(4, 4), new Dice(5, 5), new Dice(6, 6), new Dice(1, 2), new Dice(1, 3),
-                                             new Dice(1, 4), new Dice(1, 5), new Dice(1, 6), new Dice(2, 3), new Dice(2, 4), new Dice(2, 5), new Dice(2, 6), new Dice(3, 4),
-                                             new Dice(3, 5), new Dice(3, 6), new Dice(4, 5), new Dice(4, 6), new Dice(5, 6) };
+        private Action[] allActions = new Action[] {
+                                      new Dice(1, 1), new Dice(2, 2), new Dice(3, 3), new Dice(4, 4), new Dice(5, 5), new Dice(6, 6), new Dice(1, 2), new Dice(1, 3),
+                                      new Dice(1, 4), new Dice(1, 5), new Dice(1, 6), new Dice(2, 3), new Dice(2, 4), new Dice(2, 5), new Dice(2, 6), new Dice(3, 4),
+                                      new Dice(3, 5), new Dice(3, 6), new Dice(4, 5), new Dice(4, 6), new Dice(5, 6) };
         
         public sbyte[] board;
         public List<byte> myPieces;
@@ -522,6 +522,44 @@ namespace GAME
             //    Console.WriteLine($"Current legal actions {legalActions.Count}:\n{HelperMethods.ListToString(legalActions)}");
             //    Console.WriteLine($"new legal actions {legalActionsV2.Count}:\n{HelperMethods.ListToString(legalActionsV2)}");
 
+            //    Console.Write("The missing actions in v2 are: ");
+            //    foreach (Action act in legalActions)
+            //    {
+            //        if (legalActionsV2.Contains(act) == false)
+            //        {
+            //            Console.Write(act + ", ");
+            //        }
+            //    }
+            //    Console.WriteLine();
+
+            //    Console.Write("The added actions in v2 are: ");
+            //    foreach (Action act in legalActionsV2)
+            //    {
+            //        if (legalActions.Contains(act) == false)
+            //        {
+            //            Console.Write(act + ", ");
+            //        }
+            //    }
+            //    Console.WriteLine();
+
+            //    Console.Write("The duplicate actions in v2 are: ");
+            //    for (int i = 0; i < legalActionsV2.Count; i++)
+            //    {
+            //        int duplicateCount = 0;
+            //        for (int j = i + 1; j < legalActionsV2.Count; j++)
+            //        {
+            //            if (legalActionsV2[i].Equals(legalActionsV2[j]))
+            //            {
+            //                legalActionsV2.RemoveAt(j);
+            //                j--;
+            //                duplicateCount++;
+            //            }
+            //        }
+            //        if (duplicateCount != 0)
+            //            Console.Write(legalActionsV2[i] + $" {duplicateCount} times || ");
+            //    }
+            //    Console.WriteLine();
+
             //    throw new Exception("They are not the same!");
             //    VersionDifferenceCount++;
             //}
@@ -622,10 +660,11 @@ namespace GAME
                     byte steps = 0;
                     for (byte i = (byte)(b + dice.dice1); i < 24 && state.board[i] >= -1 && steps < dCount; i += dice.dice1)
                         steps += (byte)state.board[b];
+
                     if (steps != 0)
                     {
                         maxPlay += steps;
-                        steps = Math.Min(steps, dCount);
+                        steps = Math.Min(steps, dCount); // the max amount of moves possible to make from this index
                         //towerTable.Add((b, steps));
 
                         for (int i = 1; i <= steps; i++)
@@ -636,16 +675,11 @@ namespace GAME
                     }
                 }
 
-
-                maxPlay = Math.Min(maxPlay, dCount);
-
-                maxPlay += 4 - dCount; // the max number of moves possible
-
                 List<List<(byte, byte)>> towerMoves2 = TowerMovesListV2(towersListV2, dCount);
 
                 legalActions = GetActionList(towerMoves2, towerActionsDict);
                 if (legalActions.Count == 0)
-                    legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(4)));
+                    legalActions.Add(new BackGammonChanceAction());
 
                 if (dCount != 4)
                 {
@@ -659,6 +693,10 @@ namespace GAME
                 }
                 else // there is a chance, that i could have taken out a piece but didn't
                 {
+                    maxPlay = Math.Min(maxPlay, dCount); // the number of moves possible after entering pieces
+
+                    maxPlay += 4 - dCount; // the max number of moves possible overall
+
                     BackGammonChanceAction preBearingAction = new BackGammonChanceAction();
 
                     // move all pieces to the enemy board, so that i can start bearing off...
@@ -688,224 +726,6 @@ namespace GAME
                         state.board[indexFrom] = 0;
                     }
                     
-
-                    // if im here, it means all my pieces are in the enemy base, and i have at least 1 more action to make
-                    // i need to find all options where at least 1 piece got off the board (otherwise it will be a duplicate of the already existing actions)
-
-                    List<BackGammonChanceAction> endGameActions = EndGameDoubleActions(state.board, dice.dice1, dCount);
-
-                    foreach (BackGammonChanceAction act in endGameActions)
-                    {
-                        if (act.Count + preBearingAction.Count == maxPlay) // it is equal length (so either i did a duplicate move, or i beared off)
-                        {
-                            if (act.IsBearingOff()) // only if i beared off the board do i know its not a duplicate move
-                            {
-                                act.AddToAction(preBearingAction);
-                                legalActions.Add(act);
-                            }
-                        }
-                        else if (act.Count + preBearingAction.Count > maxPlay) // if its bigger, i know i beared off from the board 100% so no need to check that
-                        {
-                            act.AddToAction(preBearingAction);
-                            legalActions.Clear();
-                            legalActions.Add(act);
-                            maxPlay = act.Count;
-                        }
-                    }
-                }
-            }
-            else // not a double, find moves regularly
-            {
-                if (state.myEatenCount == 0)
-                {
-                    Regular2PieceMove(legalActions, state, dice);
-                }
-                else if (state.myEatenCount >= 2)
-                {
-                    if (state.board[dice.dice1 - 1] >= -1)
-                    {
-                        if (state.board[dice.dice2 - 1] >= -1)
-                            legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
-                                            { (-1, (sbyte)(dice.dice1 - 1)), (-1, (sbyte)(dice.dice2 - 1))}));
-                        else
-                            legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
-                                            { (-1, (sbyte)(dice.dice1 - 1))}));
-                    }
-                    else if (state.board[dice.dice2 - 1] >= -1)
-                        legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
-                                            { (-1, (sbyte)(dice.dice2 - 1))}));
-                }
-                else // i have 1 eaten
-                {
-                    bool added = false;
-                    void RegularOneEaten(byte die1, byte die2, bool isFirst)
-                    {
-                        if (state.board[die1 - 1] >= -1)
-                        {
-                            // i can only move with the piece that entered if its clear && (im first || at least one enter option isn't clear)
-                            if (state.board[die1 + die2 - 1] >= -1 && (isFirst || state.board[die1 - 1] <= -1 || state.board[die2 - 1] <= -1))
-                            {
-                                if (!added)
-                                    legalActions.Clear();
-
-                                legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
-                                                { (-1, (sbyte)(die1 - 1)), ((sbyte)(die1 - 1), (sbyte)(die1 + die2 -1))}));
-                                added = true;
-                            }
-
-                            foreach (byte b in state.myPieces)
-                            {
-                                if (b + die2 >= 24)
-                                    break;
-                                if (b != die1 - 1 && state.board[b + die2] >= -1)
-                                {
-                                    if (!added)
-                                        legalActions.Clear();
-
-                                    legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
-                                                    { (-1, (sbyte)(die1 - 1)), ((sbyte)b, (sbyte)(b + die2))}));
-                                    added = true;
-                                }
-                            }
-                            if (!added)
-                                legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
-                                            { (-1, (sbyte)(die1 - 1))}));
-                        }
-                    }
-                    RegularOneEaten(dice.dice1, dice.dice2, true);
-                    RegularOneEaten(dice.dice2, dice.dice1, false);
-                }
-            }
-
-            return legalActions;
-        }
-
-        // currently is a copy of "GetLegalActionsInside"
-        private List<Action> GetLegalActionsInsideV2(State prevState)
-        {
-            BackGammonChoiceState state = new BackGammonChoiceState((BackGammonChoiceState)prevState);
-            List<Action> legalActions = new List<Action>();
-
-            // Supposedly finished all the double options, didn't yet do non double bearing off...
-            if (dice.dice1 == dice.dice2) // this is a double!
-            {
-                byte dCount = 4;
-
-                if (state.myEatenCount > 0) // i need to remove from eaten pieces
-                {
-                    if (state.board[dice.dice1 - 1] < -1)
-                        return legalActions; // return empty list, since i cant move at all
-                    else
-                    {
-                        dCount -= Math.Min((byte)4, state.myEatenCount);
-
-                        switch (state.board[dice.dice1 - 1]) // what is on the position i want to enter?
-                        {
-                            case -1: // an enemy piece
-                                state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
-                                state.enemyPieces.Remove((byte)(dice.dice1 - 1)); // remove it since it no longer going to be there
-                                for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
-                                    if (state.myPieces[i] >= dice.dice1) // if i passed the current index
-                                    {
-                                        state.myPieces.Insert(i, (byte)(dice.dice1 - 1));
-                                        break;
-                                    }
-                                break;
-                            case 0: // empty 
-                                state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
-                                for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
-                                    if (state.myPieces[i] >= dice.dice1) // if i passed the current index
-                                    {
-                                        state.myPieces.Insert(i, (byte)(dice.dice1 - 1));
-                                        break;
-                                    }
-                                break;
-                            default: // i have my pieces
-                                state.board[dice.dice1 - 1] += (sbyte)(4 - dCount);
-                                break;
-                        }
-                    }
-                }
-
-                // list of all towers able to be used, and also the amount of times they can be used...
-                //List<(byte, byte)> towerTable = new List<(byte, byte)>();
-
-                List<byte> towersListV2 = new List<byte>();
-
-                Dictionary<int, List<Action>> towerActionsDict = new Dictionary<int, List<Action>>();
-
-                int maxPlay = 0;
-                foreach (byte b in state.myPieces)
-                {
-                    byte steps = 0;
-                    for (byte i = (byte)(b + dice.dice1); i < 24 && state.board[i] >= -1 && steps < dCount; i += dice.dice1)
-                        steps += (byte)state.board[b];
-                    if (steps != 0)
-                    {
-                        maxPlay += steps;
-                        steps = Math.Min(steps, dCount);
-                        //towerTable.Add((b, steps));
-
-                        for (int i = 1; i <= steps; i++)
-                        {
-                            towerActionsDict.Add(i * 100 + b, GetActions((sbyte)b, (byte)i, dice.dice1, (byte)state.board[b], state));
-                            towersListV2.Add(b);
-                        }
-                    }
-                }
-
-
-                maxPlay = Math.Min(maxPlay, dCount);
-
-                maxPlay += 4 - dCount; // the max number of moves possible
-
-                List<List<(byte, byte)>> towerMoves2 = TowerMovesListV2(towersListV2, dCount);
-
-                legalActions = GetActionList(towerMoves2, towerActionsDict);
-                if (legalActions.Count == 0)
-                    legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(4)));
-
-                if (dCount != 4)
-                {
-                    foreach (Action action in legalActions)
-                    {
-                        BackGammonChanceAction ca = (BackGammonChanceAction)action;
-
-                        for (int i = 0; i < 4 - dCount; i++)
-                            ca.AddToAction((-1, (sbyte)(dice.dice1 - 1)));
-                    }
-                }
-                else // there is a chance, that i could have taken out a piece but didn't
-                {
-                    BackGammonChanceAction preBearingAction = new BackGammonChanceAction();
-
-                    // move all pieces to the enemy board, so that i can start bearing off...
-                    while (state.myPieces[0] < 18)
-                    {
-                        int indexFrom = state.myPieces[0];
-                        int indexTo = indexFrom + dice.dice1;
-                        if (state.board[indexFrom] >= dCount || state.board[indexTo] < -1)
-                            return legalActions;
-
-                        dCount -= (byte)state.board[indexFrom];
-                        state.myPieces.RemoveAt(0);
-
-                        if (state.board[indexTo] > 0)
-                        {
-                            state.board[indexTo] += state.board[indexFrom];
-                        }
-                        else
-                        {
-                            state.board[indexTo] = state.board[indexFrom];
-                            HelperMethods.InsertToList(state.myPieces, (byte)indexTo);
-                        }
-
-                        for (int j = 0; j < state.board[indexFrom]; j++)
-                            preBearingAction.AddToAction(((sbyte)indexFrom, (sbyte)indexTo));
-
-                        state.board[indexFrom] = 0;
-                    }
-
 
                     // if im here, it means all my pieces are in the enemy base, and i have at least 1 more action to make
                     // i need to find all options where at least 1 piece got off the board (otherwise it will be a duplicate of the already existing actions)
@@ -1282,70 +1102,6 @@ namespace GAME
             }
         }
 
-        private List<Action> GetActionList(List<List<(byte, byte)>> towerMovesList, Dictionary<int, List<Action>> actionsDict)
-        {
-            List<Action> actions = new List<Action>();
-
-            HashSet<BackGammonChanceAction> existingActions = new HashSet<BackGammonChanceAction>();
-
-            foreach (List<(byte, byte)> towerMoves in towerMovesList)
-            {
-                List<Action> currActions = actionsDict[(towerMoves[0].Item2 * 100) + towerMoves[0].Item1];
-
-                for (int i = 1; i < towerMoves.Count - 1; i++)
-                {
-                    List<Action> addedActions = actionsDict[(towerMoves[i].Item2 * 100) + towerMoves[i].Item1];
-
-                    List<Action> newActions = new List<Action>(currActions.Count * addedActions.Count);
-
-                    for (int j = 0; j < currActions.Count; j++)
-                    {
-                        BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
-                        for (int k = 0; k < addedActions.Count; k++)
-                        {
-                            newActions.Add(new BackGammonChanceAction(currAct, (BackGammonChanceAction)addedActions[k]));
-                        }
-                    }
-
-                    currActions = newActions;
-                }
-
-
-                if (towerMoves.Count > 1)
-                {
-                    List<Action> addedActions = actionsDict[(towerMoves[towerMoves.Count - 1].Item2 * 100) + towerMoves[towerMoves.Count - 1].Item1];
-
-                    for (int j = 0; j < currActions.Count; j++)
-                    {
-                        BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
-                        for (int k = 0; k < addedActions.Count; k++)
-                        {
-                            BackGammonChanceAction newAct = new BackGammonChanceAction(currAct, (BackGammonChanceAction)addedActions[k]);
-
-                            if (existingActions.Contains(newAct) == false)
-                            {
-                                existingActions.Add(newAct);
-                                actions.Add(newAct);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (BackGammonChanceAction action in currActions)
-                    {
-                        if (existingActions.Contains(action) == false)
-                        {
-                            existingActions.Add(action);
-                            actions.Add(action);
-                        }
-                    }
-                }
-            }
-
-            return actions;
-        }
-
         /// <summary>
         /// Returns the List of Actions that can be made from that index with that dice
         /// </summary>
@@ -1356,7 +1112,8 @@ namespace GAME
         /// <param name="state">The state of the board.</param>
         /// <returns></returns>
         private List<Action> GetActions(sbyte index, byte count, byte dice, byte pieceCount, BackGammonChoiceState state)
-        { // i always know that i can move at least once from that index...
+        { 
+            // i always know that i can move at least once from that index...
             List<Action> lst = new List<Action>();
 
             if (count == 4)
@@ -1447,6 +1204,67 @@ namespace GAME
             lst.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { (index, (sbyte)(index + dice)), (0, 0), (0, 0), (0, 0) }, 1)); // only possible move (no check since count is accurate)
             return lst;
         }
+
+        private List<Action> GetActionList(List<List<(byte, byte)>> towerMovesList, Dictionary<int, List<Action>> actionsDict)
+        {
+            HashSet<BackGammonChanceAction> existingActions = new HashSet<BackGammonChanceAction>();
+
+            foreach (List<(byte, byte)> towerMoves in towerMovesList)
+            {
+                List<Action> currActions = actionsDict[(towerMoves[0].Item2 * 100) + towerMoves[0].Item1];
+                if (towerMoves.Count == 1)
+                {
+                    for (int i = 0; i < currActions.Count; i++)
+                    {
+                        existingActions.Add((BackGammonChanceAction)currActions[i]);
+                    }
+                    continue;
+                }
+
+                List<Action> addedActions;
+
+                for (int i = 1; i < towerMoves.Count - 1; i++)
+                {
+                    addedActions = actionsDict[(towerMoves[i].Item2 * 100) + towerMoves[i].Item1];
+
+                    List<Action> newActions = new List<Action>(currActions.Count * addedActions.Count);
+
+                    for (int j = 0; j < currActions.Count; j++)
+                    {
+                        BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
+                        for (int k = 0; k < addedActions.Count; k++)
+                        {
+                            newActions.Add(new BackGammonChanceAction(currAct, (BackGammonChanceAction)addedActions[k]));
+                        }
+                    }
+
+                    currActions = newActions;
+                }
+
+                addedActions = actionsDict[(towerMoves[towerMoves.Count - 1].Item2 * 100) + towerMoves[towerMoves.Count - 1].Item1];
+
+                for (int j = 0; j < currActions.Count; j++)
+                {
+                    BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
+                    for (int k = 0; k < addedActions.Count; k++)
+                    {
+                        BackGammonChanceAction newAct = new BackGammonChanceAction(currAct, (BackGammonChanceAction)addedActions[k]);
+
+                        existingActions.Add(newAct);
+                    }
+                }
+            }
+
+            List<Action> actions = new List<Action>(existingActions.Count);
+
+            foreach (Action action in existingActions)
+            {
+                actions.Add(action);
+            }
+
+            return actions;
+        }
+
 
         private List<BackGammonChanceAction> EndGameDoubleActions(sbyte[] board, byte die, int dieCount)
         {
@@ -1818,6 +1636,7 @@ namespace GAME
         public BackGammonChanceAction()
         {
             this.indexes = new (sbyte, sbyte)[4];
+            this.Count = 0;
         }
 
         public BackGammonChanceAction(BackGammonChanceAction copy)

@@ -90,6 +90,18 @@ namespace HelperSpace
             return s + " ]";
         }
 
+        public static string DictionaryToString<T1, T2>(Dictionary<T1, T2> dict)
+        {
+            string s = "";
+
+            foreach (KeyValuePair<T1, T2> pair in dict)
+            {
+                s += $"{pair.Key.ToString()}={pair.Value.ToString()}, ";
+            }
+
+            return s;
+        }
+
         public static int InsertToList(List<byte> list, byte newItem)
         {
             for (int i = 0; i < list.Count; i++)

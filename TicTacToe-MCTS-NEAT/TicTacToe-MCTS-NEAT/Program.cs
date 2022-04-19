@@ -21,15 +21,15 @@ namespace User
             //                              0, 0);
 
             //BackGammonChoiceState start = new BackGammonChoiceState(
-            //                              new sbyte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -1, -5, -2 },
-            //                              5, 0);
+            //                              new sbyte[] { 2, -1, 0, 0, 0, -5, 0, -3, 0, 0, 0, 4, -4, 0, 0, 0, 3, 0, 4, 1, 0, 0, 1, -2 },
+            //                              0, 0);
 
             ////start.RotateBoard();
 
-            BackGammonChoiceState start = new BackGammonChoiceState();
+            //BackGammonChoiceState start = new BackGammonChoiceState();
 
             //Console.WriteLine(start);
-            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(2,4));
+            //BackGammonChanceState startDice = new BackGammonChanceState(new Dice(2, 4));
 
             //List<GAME.Action> actions = startDice.GetLegalActions(start);
 
@@ -46,25 +46,27 @@ namespace User
 
             //Console.WriteLine(HelperMethods.ListToString(startDice.GetLegalActions(start)));
 
-            MCTSNode parentStartNode = new MCTSNode(start, MCTSNode.CHyperParam);
+            //MCTSNode parentStartNode = new MCTSNode(start, MCTSNode.CHyperParam);
 
-            MCTSNode startNode = new MCTSNode(startDice, parentStartNode);
+            //MCTSNode startNode = new MCTSNode(startDice, parentStartNode);
 
-            Console.WriteLine(parentStartNode);
+            //Console.WriteLine(parentStartNode);
 
-            Stopwatch sw = new Stopwatch();
+            //Stopwatch sw = new Stopwatch();
 
-            sw.Start();
-            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(10000, 8);
+            //sw.Start();
+            ////MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(50000, 8);
 
-            MCTSNode bestMove = startNode.BestAction(10000);
+            ////MCTSNode bestMove = startNode.BestAction(10000);
+            ////MCTSNode bestMove = startNode.BestActionInTime(1000, sw);
+            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(1000, 8);
 
-            sw.Stop();
-            Console.WriteLine(sw.Elapsed);
+            //sw.Stop();
+            //Console.WriteLine(sw.Elapsed);
 
-            ((BackGammonChoiceState)bestMove.GetState()).RotateBoard();
-            Console.WriteLine(bestMove);
-            Console.WriteLine("Difference count: " + BackGammonChanceState.VersionDifferenceCount);
+            //((BackGammonChoiceState)bestMove.GetState()).RotateBoard();
+            //Console.WriteLine(bestMove);
+            //Console.WriteLine("Difference count: " + BackGammonChanceState.VersionDifferenceCount);
 
             //MCTSNode.CHyperParam *= 0.1f;
             //Console.WriteLine(MCTSNode.CHyperParam);
@@ -77,21 +79,20 @@ namespace User
             //Console.WriteLine(BackGammonChanceAction.isBigger);
 
 
-            //AiTester.TestAi(200000);
+            AiTester.FindBestValueForHyperParamater(0.1f, 2.05f, 0.1f ,20000, 1521);
 
             // with 200,000 ai tester found:
-            // (seems like the lower the exploration value the better)
-            // 0.1f = 8.8
-            // 0.2f = 4.8
+            // 0.1f = 1
+            // 0.2f = 3.8
             // 0.3f = 4.8
-            // 0.4f = 6.7
-            // 0.5f = 4.8
-            // 0.6f = 4.8
-            // 0.7f = 5.8
+            // 0.4f = 5.8
+            // 0.5f = 4.9
+            // 0.6f = 5.8
+            // 0.7f = 4.8 
             // 0.8f = 4.8
             // 0.9f = 4.8
-            // 1f = 5.8
-            // 1.1f = 4.8
+            // 1.0f = 4.8
+            // 1.1f = 4.8 
             // 1.2f = 4.8
             // 1.3f = 4.8
             // 1.4f = 4.8
@@ -99,7 +100,29 @@ namespace User
             // 1.6f = 4.8
             // 1.7f = 4.8
             // 1.8f = 4.8
+            // 1.9f = 4.8 (didn't update this...)
+
+            // 200,000 with a corrected random child pick in BestChild ai tester found:
+            // 0.1f = 2.8
+            // 0.2f = 7.6
+            // 0.3f = 5.7
+            // 0.4f = 4.8
+            // 0.5f = 4.8
+            // 0.6f = 4.8
+            // 0.7f = 4.8
+            // 0.8f = 4.8
+            // 0.9f = 4.8
+            // 1.0f = 4.8
+            // 1.1f = 4.8
+            // 1.2f = 4.8
+            // 1.3f = 5.8
+            // 1.4f = 4.8
+            // 1.5f = 4.8
+            // 1.6f = 4.8
+            // 1.7f = 5.8
+            // 1.8f = 4.8
             // 1.9f = 4.8
+            // 2.0f = 4.8
         }
 
         private static void CheckAiPerformanceForDie(int simulationCount, byte die1, byte die2)

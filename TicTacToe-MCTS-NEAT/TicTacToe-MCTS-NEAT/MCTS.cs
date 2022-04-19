@@ -162,7 +162,8 @@ namespace MCTS
 
         private MCTSNode BestChild(System.Random rnd)
         {
-            MCTSNode bestChild = HelperMethods.GetRandomFromArray(children, rnd);
+            //MCTSNode bestChild = HelperMethods.GetRandomFromArray(children, rnd);
+            MCTSNode bestChild = children[state.RandomPick(children.Length, rnd)];
 
             if (children[0].state.IsChanceState()) // if its chance state, return it randomly
             {
@@ -233,6 +234,25 @@ namespace MCTS
         public MCTSNode BestAction(int simulationCount)
         {
             System.Random rnd = new System.Random();
+            for (int i = 0; i < simulationCount; i++)
+            {
+                MCTSNode v = TreePolicy(rnd);
+                v.BackPropagate(v.RollOut(rnd));
+            }
+
+            MCTSNode bestChild = children[0];
+            for (int i = 1; i < children.Length; i++)
+            {
+                if (children[i].numberOfVisits > bestChild.numberOfVisits)
+                    bestChild = children[i];
+            }
+
+            return bestChild;
+        }
+
+        public MCTSNode BestAction(int simulationCount, int seed)
+        {
+            System.Random rnd = new System.Random(seed);
             for (int i = 0; i < simulationCount; i++)
             {
                 MCTSNode v = TreePolicy(rnd);

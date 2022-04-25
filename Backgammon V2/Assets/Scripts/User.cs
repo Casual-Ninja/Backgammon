@@ -388,6 +388,13 @@ namespace BackGammonUser
             this.inGame = true;
         }
 
+        public void SetStartGameState(BackGammonChanceState state, BackGammonChoiceState choiceState)
+        {
+            this.parentState = choiceState; // this is the starting position...
+            this.state = state;
+            this.inGame = true;
+        }
+
         protected override void ParseMessage(string message, MessageType messageType)
         {
             lock (serverInformation)

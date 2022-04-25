@@ -72,10 +72,10 @@ public class BoardViewManager : MonoBehaviour
         InitializeAllPoints();
 
         //BackGammonChoiceState cs = new BackGammonChoiceState(
-        //    new sbyte[] { -2, -2, -2, 0, -4, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 3, 1, 2 }, 0, 0);
-        //BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(1, 3));
+        //    new sbyte[] { -5, -2, -2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 2 }, 0, 0);
+        //BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(4, 5));
 
-        //InitializeNewState(cs);
+        //yield return StartCoroutine(InitializeNewState(cs));
         //BackGammonChanceAction output = new BackGammonChanceAction();
         //StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
         //StartCoroutine(SetDiceValues(chanceState));
@@ -392,105 +392,6 @@ public class BoardViewManager : MonoBehaviour
             pip.GoToInvisiblePip();
         foreach (VisualPip pip in negativeVisualPips)
             pip.GoToInvisiblePip();
-
-        CorrectAllPointText();
-    }
-
-    private IEnumerator InitializePipState(BackGammonChoiceState pipsState)
-    {
-        this.currentState = pipsState;
-
-        DestroyAllInvisiblePips(topLeft, topRight, bottomRight, bottomLeft);
-
-        DestroyAllVisualPips();
-
-        pipsMoving.Clear();
-
-        int positiveFinishedCount = 15 - pipsState.myEatenCount;
-        int negativeFinishedCount = 15 - pipsState.enemyEatenCount;
-
-
-        for (int i = 0; i < pipsState.board.Length; i++)
-        {
-            int zoneIndex = i / 6;
-
-            BoardPoint point = insideBoard.GetChild(zoneIndex).GetComponent<BoardZone>().GetPoint(i - (zoneIndex * 6));
-
-            for (int j = 0; j < Mathf.Abs(pipsState.board[i]); j++)
-            {
-                GameObject newPip = Instantiate(pipPrefab, point.GetPipHolder());
-                RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
-                invisibleRect.sizeDelta = pipSize;
-
-
-                VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-                if (pipsState.board[i] > 0)
-                {
-                    newVisualPip.SetColor(pipColor1);
-                    positiveFinishedCount--;
-                }
-                else
-                {
-                    newVisualPip.SetColor(pipColor2);
-                    negativeFinishedCount--;
-                }
-                newVisualPip.SetSize(pipSize); // set correct size
-                newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
-            }
-        }
-
-        for (int i = 0; i < pipsState.myEatenCount; i++)
-        {
-            GameObject newPip = Instantiate(pipPrefab, positiveEaten);
-            RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
-            invisibleRect.sizeDelta = pipSize;
-
-            VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-            newVisualPip.SetColor(pipColor1); // set correct color
-            newVisualPip.SetSize(pipSize); // set correct size
-            newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
-        }
-        for (int i = 0; i < pipsState.enemyEatenCount; i++)
-        {
-            GameObject newPip = Instantiate(pipPrefab, negativeEaten);
-            RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
-            invisibleRect.sizeDelta = pipSize;
-
-            VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-            newVisualPip.SetColor(pipColor2); // set correct color
-            newVisualPip.SetSize(pipSize); // set correct size
-            newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
-        }
-
-        for (int i = 0; i < positiveFinishedCount; i++)
-        {
-            GameObject newPip = Instantiate(pipPrefab, positiveEnd);
-            RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
-            invisibleRect.sizeDelta = pipSize;
-
-            VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-            newVisualPip.SetColor(pipColor1); // set correct color
-            newVisualPip.SetSize(pipSize); // set correct size
-            newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
-        }
-        for (int i = 0; i < negativeFinishedCount; i++)
-        {
-            GameObject newPip = Instantiate(pipPrefab, negativeEnd);
-            RectTransform invisibleRect = newPip.GetComponent<RectTransform>();
-            invisibleRect.sizeDelta = pipSize;
-
-            VisualPip newVisualPip = Instantiate(visualPipPrefab, visualPipHolder).GetComponent<VisualPip>();
-            newVisualPip.SetColor(pipColor2); // set correct color
-            newVisualPip.SetSize(pipSize); // set correct size
-            newVisualPip.SetInvisiblePip(invisibleRect); // set the new position
-        }
-
-        ForceUpdateCanvas();
-
-        yield return new WaitForEndOfFrame();
-
-        foreach (Transform pip in visualPipHolder)
-            pip.GetComponent<VisualPip>().GoToInvisiblePip();
 
         CorrectAllPointText();
     }

@@ -511,7 +511,7 @@ namespace BackGammonUser
             PushData(); // push the data before starting to calculate the move
 
             // calculate the computer move
-            GAME.Action bestMove = FindBestMoveInTime(threadsToUse); // use only 1 thread for this
+            GAME.Action bestMove = FindBestMoveInTime(threadsToUse);
 
             AddDataToSend(bestMove.ProtocolInformation(), MessageType.ChanceAction); // send to the player the actual move the server made
 
@@ -540,6 +540,7 @@ namespace BackGammonUser
             if (inGame == false) // make sure the game started
             {
                 AddDataToSend("Not in game!", MessageType.MoveError);
+                PushData();
                 return;
             }
             if (this.isPlayerTurn == false)
@@ -554,6 +555,7 @@ namespace BackGammonUser
             catch
             {
                 AddDataToSend("Move format not correct!", MessageType.MoveError);
+                PushData();
                 return;
             }
 
@@ -562,7 +564,10 @@ namespace BackGammonUser
             if (!legalMove)
             {
                 AddDataToSend(parentState.ProtocolInformation(), MessageType.ChoiceState);
+                AddDataToSend(state.ProtocolInformation(), MessageType.ChanceState);
+
                 AddDataToSend("Move is not legal!", MessageType.MoveError);
+                PushData();
             }
             else
             {
@@ -590,7 +595,7 @@ namespace BackGammonUser
 
             this.isPlayerTurn = rnd.Next(2) == 1 ? true : false;
 
-            if (this.isPlayerTurn) // if 1 is bigger than 2, player starts
+            if (this.isPlayerTurn)
             {
                 AddDataToSend(this.state.ProtocolInformation() + '1', MessageType.StartGame); // send to the player the starting dice
             }

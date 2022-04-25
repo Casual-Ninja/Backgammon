@@ -39,6 +39,7 @@ public class OnlineGameManager : MonoBehaviour
 
     private IEnumerator StartingGamePhase()
     {
+        BackGammonChoiceState choiceState = null;
         while (user.inGame == false) // while i haven't officialy started the game
         {
             yield return StartCoroutine(WaitForServerAnswer());
@@ -48,12 +49,18 @@ public class OnlineGameManager : MonoBehaviour
             {
                 switch (message.Item2)
                 {
+                    case MessageType.ChoiceState:
+                        choiceState = BackGammonChoiceState.PorotocolInformation(message.Item1);
+                        break;
                     case MessageType.StartGame:
                         BackGammonChanceState chanceState = BackGammonChanceState.PorotocolInformation(message.Item1.Substring(0, 2));
 
-                        user.SetStartGameState(chanceState);
+                        if (choiceState == null)
+                            user.SetStartGameState(chanceState);
+                        else
+                            user.SetStartGameState(chanceState, choiceState);
 
-                        yield return StartCoroutine(viewManager.InitializeDeafualtPips());
+                        yield return StartCoroutine(viewManager.InitializeNewState(user.parentState));
                         yield return StartCoroutine(viewManager.SetDiceValues(user.state));
 
                         if (message.Item1[2] == '1')
@@ -118,7 +125,7 @@ public class OnlineGameManager : MonoBehaviour
                             break;
                         case MessageType.ChoiceState: // the new choice state of the board
                             user.parentState = BackGammonChoiceState.PorotocolInformation(message.Item1);
-                            //viewManager.InitializeNewState(user.parentState);
+                            yield return StartCoroutine(viewManager.InitializeNewState(user.parentState));
                             break;
                         case MessageType.ChanceState: // the new chance state of the board
                             user.state = BackGammonChanceState.PorotocolInformation(message.Item1);
@@ -134,6 +141,7 @@ public class OnlineGameManager : MonoBehaviour
                             break;
                         case MessageType.MoveError: // The move i sent wasn't correct for some reason...
                             waitForServerMessage = false;
+                            print("Move error: " + message.Item1);
                             break;
                         case MessageType.DisconnectFromServer:
                             print("In disconnect from server in gamephase");
@@ -141,13 +149,13 @@ public class OnlineGameManager : MonoBehaviour
                             ReturnToMainMenu();
                             break;
                         default:
+                            print(message.Item1 + " || type: " + message.Item2);
                             break;
                     }
                 }
             }
         }
         
-        // someone won (the opposite of current turn since the turn was switched)
         if (user.isPlayerTurn)
             GameFinished(playerWonMessage);
         else

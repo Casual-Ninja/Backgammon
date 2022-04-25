@@ -402,10 +402,10 @@ namespace GAME
 
             for (int i = 0; i < board.Length; i++)
                 info += board[i].ToString() + ",";
-            
-            info += myEatenCount.ToString() + "/" + enemyEatenCount.ToString();
 
-            return info; // will look like: "1,0,-2,5...,0/1"
+            info += myEatenCount.ToString() + "," + enemyEatenCount.ToString();
+
+            return info; // will look like: "1,0,-2,5...,0,1"
         }
 
         public static BackGammonChoiceState PorotocolInformation(string state)
@@ -418,8 +418,8 @@ namespace GAME
             for (int i = 0; i < 24; i++)
                 board[i] = sbyte.Parse(stateParts[i]);
 
-            byte myEatenCount = byte.Parse(stateParts[24][0].ToString());
-            byte enemyEatenCount = byte.Parse(stateParts[24][2].ToString());
+            byte myEatenCount = byte.Parse(stateParts[24]);
+            byte enemyEatenCount = byte.Parse(stateParts[25]);
 
             return new BackGammonChoiceState(board, myEatenCount, enemyEatenCount);
         }

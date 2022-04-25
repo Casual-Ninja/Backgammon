@@ -387,9 +387,9 @@ namespace GAME
             for (int i = 0; i < board.Length; i++)
                 info += board[i].ToString() + ",";
 
-            info += myEatenCount.ToString() + "/" + enemyEatenCount.ToString();
+            info += myEatenCount.ToString() + "," + enemyEatenCount.ToString();
 
-            return info; // will look like: "1,0,-2,5...,0/1"
+            return info; // will look like: "1,0,-2,5...,0,1"
         }
 
         public static BackGammonChoiceState PorotocolInformation(string state)
@@ -402,8 +402,8 @@ namespace GAME
             for (int i = 0; i < 24; i++)
                 board[i] = sbyte.Parse(stateParts[i]);
 
-            byte myEatenCount = byte.Parse(stateParts[24][0].ToString());
-            byte enemyEatenCount = byte.Parse(stateParts[24][2].ToString());
+            byte myEatenCount = byte.Parse(stateParts[24]);
+            byte enemyEatenCount = byte.Parse(stateParts[25]);
 
             return new BackGammonChoiceState(board, myEatenCount, enemyEatenCount);
         }
@@ -516,6 +516,205 @@ namespace GAME
             return legalActions;
         }
 
+        private List<Action> GetLegalActionsWithDuplicatesInside(State prevState)
+        {
+            if (dice.dice1 == dice.dice2) // this is a double!
+            {
+                return GetLegalActionsInside(prevState);
+            }
+
+            BackGammonChoiceState state = new BackGammonChoiceState((BackGammonChoiceState)prevState);
+            List<Action> legalActions = new List<Action>();
+
+            if (state.myEatenCount == 0)
+            {
+                Regular2PieceMoveWithDuplicates(legalActions, state, dice);
+            }
+            else if (state.myEatenCount >= 2)
+            {
+                if (state.board[dice.dice1 - 1] >= -1)
+                {
+                    if (state.board[dice.dice2 - 1] >= -1)
+                        legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
+                                            { (-1, (sbyte)(dice.dice1 - 1)), (-1, (sbyte)(dice.dice2 - 1))}));
+                    else
+                        legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
+                                            { (-1, (sbyte)(dice.dice1 - 1))}));
+                }
+                else if (state.board[dice.dice2 - 1] >= -1)
+                    legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
+                                            { (-1, (sbyte)(dice.dice2 - 1))}));
+            }
+            else // i have 1 eaten
+            {
+                bool added = false;
+                void RegularOneEaten(byte die1, byte die2, bool isFirst)
+                {
+                    if (state.board[die1 - 1] >= -1)
+                    {
+                        // i can only move with the piece that entered if its clear && (im first || at least one enter option isn't clear)
+                        if (state.board[die1 + die2 - 1] >= -1 && (isFirst || state.board[die1 - 1] <= -1 || state.board[die2 - 1] <= -1))
+                        {
+                            if (!added)
+                                legalActions.Clear();
+
+                            legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
+                                                { (-1, (sbyte)(die1 - 1)), ((sbyte)(die1 - 1), (sbyte)(die1 + die2 -1))}));
+                            added = true;
+                        }
+
+                        foreach (byte b in state.myPieces)
+                        {
+                            if (b + die2 >= 24)
+                                break;
+                            if (b != die1 - 1 && state.board[b + die2] >= -1)
+                            {
+                                if (!added)
+                                    legalActions.Clear();
+
+                                legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
+                                                    { (-1, (sbyte)(die1 - 1)), ((sbyte)b, (sbyte)(b + die2))}));
+                                added = true;
+                            }
+                        }
+                        if (!added)
+                            legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
+                                            { (-1, (sbyte)(die1 - 1))}));
+                    }
+                }
+                RegularOneEaten(dice.dice1, dice.dice2, true);
+                RegularOneEaten(dice.dice2, dice.dice1, true);
+            }
+
+            return legalActions;
+        }
+
+        private void Regular2PieceMoveWithDuplicates(List<Action> legalActions, BackGammonChoiceState state, Dice dice)
+        {
+            bool isEndGame = state.myPieces[0] >= 18;
+            bool addedTwo = false;
+
+            void OneDie(BackGammonChoiceState currState, int j, byte die, (sbyte, sbyte) prevMove, bool isFirstPiece, bool isEndGame2)
+            {
+                for (; j < currState.myPieces.Count; j++)
+                {
+                    sbyte currIndex = (sbyte)currState.myPieces[j];
+                    if (currIndex + die < 24)
+                    {
+                        isFirstPiece = false;
+                        if (currState.board[currIndex + die] >= -1)
+                        {
+                            if (!addedTwo)
+                                legalActions.Clear();
+                            legalActions.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { prevMove, (currIndex, (sbyte)(currIndex + die)) }));
+                            addedTwo = true;
+                        }
+                    }
+                    else if (currIndex + die == 24) // can always leave with this...
+                    {
+                        if (isEndGame2)
+                        {
+                            if (!addedTwo)
+                                legalActions.Clear();
+                            legalActions.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { prevMove, (currIndex, -1) }));
+                            addedTwo = true;
+                        }
+                        break;
+                    }
+                    else
+                    {
+                        if (isEndGame2 && isFirstPiece)
+                        {
+                            if (!addedTwo)
+                                legalActions.Clear();
+                            legalActions.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { prevMove, (currIndex, -1) }));
+                            addedTwo = true;
+                        }
+                        break;
+                    }
+                }
+                if (!addedTwo)
+                {
+                    legalActions.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { prevMove }));
+                }
+            }
+
+            // here is loop for die 1
+            for (int i = 0; i < state.myPieces.Count; i++)
+            {
+                if (state.myPieces[i] + dice.dice1 < 24)
+                {
+                    int addToIndex = (state.board[state.myPieces[i]] == 1) ? 1 : 0;
+                    if (state.board[state.myPieces[i] + dice.dice1] >= -1)
+                    {
+                        // can move this piece
+                        bool isEndGame2 = isEndGame ||
+                            (i == 0 && state.board[state.myPieces[0]] == 1 && state.myPieces[0] + dice.dice1 >= 18 && (state.myPieces.Count == 1 || state.myPieces[1] >= 18));
+
+                        if (state.board[state.myPieces[i] + dice.dice1] > 0)
+                            OneDie(state, i + addToIndex, dice.dice2, ((sbyte)state.myPieces[i], (sbyte)(state.myPieces[i] + dice.dice1)), i == 0, isEndGame2);
+                        else
+                        {
+                            int indexToRemove = HelperMethods.InsertToList(state.myPieces, i, (byte)(state.myPieces[i] + dice.dice1));
+                            OneDie(state, i + addToIndex, dice.dice2, ((sbyte)state.myPieces[i], (sbyte)(state.myPieces[i] + dice.dice1)), i == 0, isEndGame2);
+                            state.myPieces.RemoveAt(indexToRemove);
+                        }
+                    }
+                }
+                else
+                {
+                    if (isEndGame && (i == 0 || state.myPieces[i] + dice.dice1 == 24))
+                    {
+                        int addToIndex = (state.board[state.myPieces[i]] == 1) ? 1 : 0;
+                        OneDie(state, i + addToIndex, dice.dice2, ((sbyte)state.myPieces[i], -1), i == 0, true);
+                    }
+                    break;
+                }
+            }
+
+            // here is loop for die 2
+            for (int i = 0; i < state.myPieces.Count; i++)
+            {
+                if (state.myPieces[i] + dice.dice2 < 24)
+                {
+                    int addToIndex = (state.board[state.myPieces[i]] == 1) ? 1 : 0;
+                    if (state.board[state.myPieces[i] + dice.dice2] >= -1)
+                    {
+                        // can move this piece
+                        bool isEndGame2 = isEndGame ||
+                            (i == 0 && state.board[state.myPieces[0]] == 1 && state.myPieces[0] + dice.dice2 >= 18 && (state.myPieces.Count == 1 || state.myPieces[1] >= 18));
+
+                        if (state.board[state.myPieces[i] + dice.dice2] > 0)
+                            OneDie(state, i + addToIndex, dice.dice1, ((sbyte)state.myPieces[i], (sbyte)(state.myPieces[i] + dice.dice2)), i == 0, isEndGame2);
+                        else
+                        {
+                            int indexToRemove = HelperMethods.InsertToList(state.myPieces, i, (byte)(state.myPieces[i] + dice.dice2));
+                            OneDie(state, i + addToIndex, dice.dice1, ((sbyte)state.myPieces[i], (sbyte)(state.myPieces[i] + dice.dice2)), i == 0, isEndGame2);
+                            state.myPieces.RemoveAt(indexToRemove);
+                        }
+                    }
+                }
+                else
+                {
+                    if (isEndGame && (i == 0 || state.myPieces[i] + dice.dice2 == 24))
+                    {
+                        int addToIndex = (state.board[state.myPieces[i]] == 1) ? 1 : 0;
+                        OneDie(state, i + addToIndex, dice.dice1, ((sbyte)state.myPieces[i], -1), i == 0, true);
+                    }
+                    break;
+                }
+            }
+        }
+
+        public List<Action> GetLegalActionsWithDuplicates(State prevState)
+        {
+            List<Action> legalActions = GetLegalActionsWithDuplicatesInside(prevState);
+            if (legalActions.Count == 0)
+                legalActions.Add(new BackGammonChanceAction());
+
+            return legalActions;
+        }
+
         public bool IsLegalMove(State prevState, Action action)
         {
             if (action is BackGammonChanceAction == false)
@@ -576,6 +775,20 @@ namespace GAME
             }
 
             return legalActions;
+        }
+
+        public static List<BackGammonChanceAction> GetLegalActionsOfOneDieV2(byte theDie, BackGammonChoiceState prevState)
+        {
+            List<(sbyte, sbyte)> lst = GetLegalActionsOfOneDie(theDie, prevState);
+
+            List<BackGammonChanceAction> returnLst = new List<BackGammonChanceAction>();
+
+            foreach ((sbyte, sbyte) val in lst)
+            {
+                returnLst.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>() { val }));
+            }
+
+            return returnLst;
         }
 
         private List<Action> GetLegalActionsInside(State prevState)
@@ -1422,7 +1635,7 @@ namespace GAME
             return newState;
         }
 
-        private void CleanRotatedMove(BackGammonChoiceState state, (sbyte, sbyte) move)
+        private static void CleanRotatedMove(BackGammonChoiceState state, (sbyte, sbyte) move)
         {
             void PlacePiece(byte finishIndex)
             {
@@ -1504,7 +1717,7 @@ namespace GAME
             }
         }
 
-        private State RotateBoard(BackGammonChoiceState state)
+        private static State RotateBoard(BackGammonChoiceState state)
         {
             sbyte[] newBoard = new sbyte[24];
             for (int i = 0; i < 24; i++)
@@ -1560,6 +1773,19 @@ namespace GAME
         public override string ProtocolInformation()
         {
             return $"{dice.dice1.ToString()}{dice.dice2.ToString()}";
+        }
+
+        public static BackGammonChoiceState StaticMove(BackGammonChoiceState state, Action action)
+        {
+            BackGammonChoiceState newState = (BackGammonChoiceState)RotateBoard((BackGammonChoiceState)state);
+
+            for (int i = 0; i < ((BackGammonChanceAction)action).Count; i++)
+            {
+                (sbyte, sbyte) values = ((BackGammonChanceAction)action).indexes[i];
+                CleanRotatedMove(newState, ((sbyte)(23 - values.Item1), (sbyte)(23 - values.Item2)));
+            }
+
+            return newState;
         }
 
         public static BackGammonChanceState PorotocolInformation(string state)

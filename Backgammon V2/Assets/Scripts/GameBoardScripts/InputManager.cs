@@ -197,7 +197,9 @@ public class InputManager : MonoBehaviour
 
     public IEnumerator GetInput(BackGammonChoiceState choiceState, BackGammonChanceState chanceState, BackGammonChanceAction insertedInput)
     {
-        this.legalActions = chanceState.GetLegalActions(choiceState);
+        //this.legalActions = chanceState.GetLegalActions(choiceState);
+        this.legalActions = chanceState.GetLegalActionsWithDuplicates(choiceState);
+        //print("Try new legal options: " + HelperSpace.HelperMethods.ListToString(chanceState.GetLegalActionsWithDuplicates(choiceState)));
 
         yield return StartCoroutine(HelperSpace.HelperMethods.WaitXFrames(2));
         yield return new WaitUntil(() => BoardViewManager.instance.IsStationary);
@@ -222,11 +224,11 @@ public class InputManager : MonoBehaviour
             diesLeft = new List<byte>() { chanceState.Dice1, chanceState.Dice2 };
         }
 
+        currentlyMadeActions = new BackGammonChanceAction();
+
         CalculateAllowedMoves(choiceState, diesLeft);
 
         BoardViewManager.instance.HighlightPips(true, highlightedIndexes);
-
-        currentlyMadeActions = new BackGammonChanceAction();
 
         yield return new WaitUntil(() => currentlyMadeActions.Count == ((BackGammonChanceAction)this.legalActions[0]).Count);
 

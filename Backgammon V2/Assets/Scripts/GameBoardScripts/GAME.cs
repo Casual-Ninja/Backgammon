@@ -262,7 +262,7 @@ namespace GAME
         public override string ToString()
         {
             int pad = 3;
-            string s = "Board:\r\n";
+            string s = "Board:\n";
 
             List<int> count = new List<int>();
             int max = 0;
@@ -277,14 +277,14 @@ namespace GAME
                 max = Math.Max(Math.Abs(board[i]), max);
             }
 
-            s += "\r\n";
+            s += "\n";
 
             for (int i = -1; i < board.Length / 2; i++)
             {
                 s += ('=').ToString().PadRight(pad);
             }
 
-            s += "\r\n";
+            s += "\n";
 
             for (int i = 0; i < max; i++)
             {
@@ -311,10 +311,10 @@ namespace GAME
                     }
                 }
 
-                s += "\r\n";
+                s += "\n";
             }
 
-            s += "\r\n";
+            s += "\n";
             count.Clear();
 
             for (int i = board.Length - 1; i >= board.Length / 2; i--)
@@ -352,7 +352,7 @@ namespace GAME
                 }
 
                 max--;
-                s += "\r\n";
+                s += "\n";
             }
 
             for (int i = board.Length; i >= board.Length / 2; i--)
@@ -360,7 +360,7 @@ namespace GAME
                 s += ("=").ToString().PadRight(pad);
             }
 
-            s += "\r\n";
+            s += "\n";
 
             for (int i = board.Length - 1; i >= board.Length / 2; i--)
             {
@@ -370,11 +370,11 @@ namespace GAME
                     s += (i).ToString().PadRight(pad);
             }
 
-            s += "\r\n";
+            s += "\n";
 
-            s += "My pieces: " + HelperMethods.ListToString(myPieces) + "\r\n";
+            s += "My pieces: " + HelperMethods.ListToString(myPieces) + "\n";
 
-            s += "Enemy pieces: " + HelperMethods.ListToString(enemyPieces) + "\r\n";
+            s += "Enemy pieces: " + HelperMethods.ListToString(enemyPieces) + "\n";
 
             s += $"Eaten == [{myEatenCount},{enemyEatenCount}]";
             return s;

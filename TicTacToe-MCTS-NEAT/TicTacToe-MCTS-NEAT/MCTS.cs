@@ -40,6 +40,9 @@ namespace MCTS
             this.cHyperParam = cHyperParam;
         }
 
+        public static int sumOfAmount = 0;
+        public static int statesChecked = 0;
+
         public MCTSNode(State state, MCTSNode parent)
         {
             this.state = state;
@@ -51,6 +54,9 @@ namespace MCTS
             this.score = 0;
             this.untriedActions = GetLegalActions();
             this.children = new MCTSNode[untriedActions.Count];
+
+            sumOfAmount += untriedActions.Count;
+            statesChecked++;
         }
 
         public MCTSNode(MCTSNode CopyTree, MCTSNode actualParent)

@@ -72,16 +72,21 @@ public class BoardViewManager : MonoBehaviour
         InitializeAllPoints();
 
         //BackGammonChoiceState cs = new BackGammonChoiceState(
-        //    new sbyte[] { -5, -2, -2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 2 }, 0, 0);
-        //BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(4, 5));
+        //    new sbyte[] { -2, 0, 0, -2, 0, -4, 0, -1, 3, 0, 0, 7, -3, 0, 0, 0, 0, 0, 2, 2, 0, -1, -1, -1 }, 0, 0);
+        //BackGammonChanceState chanceState = new BackGammonChanceState(new Dice(3, 6));
 
-        //yield return StartCoroutine(InitializeNewState(cs));
-        //BackGammonChanceAction output = new BackGammonChanceAction();
-        //StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
-        //StartCoroutine(SetDiceValues(chanceState));
+        //StartCoroutine(CheckInput(cs, chanceState));
 
         //InitializeDeafualtPips();
         //HighlighPoints(true, new List<int>() { 0, 1, 5, 6, 16, 20, 21, 25 });
+    }
+
+    private IEnumerator CheckInput(BackGammonChoiceState cs, BackGammonChanceState chanceState)
+    {
+        yield return StartCoroutine(InitializeNewState(cs));
+        BackGammonChanceAction output = new BackGammonChanceAction();
+        StartCoroutine(SetDiceValues(chanceState));
+        StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
     }
 
     private void DestroyAllInvisiblePips(params BoardZone[] zones)
@@ -197,7 +202,9 @@ public class BoardViewManager : MonoBehaviour
         }
 
         foreach (VisualPip pip in positiveVisualPips)
+        {
             pip.SetHighlight(false);
+        }
         foreach (VisualPip pip in negativeVisualPips)
             pip.SetHighlight(false);
     }
@@ -241,7 +248,6 @@ public class BoardViewManager : MonoBehaviour
                     }
                     else
                     {
-                        print(negativeVisualPips.Length + " " + negativeVisualIndex + " stuff...");
                         wantedPip = negativeVisualPips[negativeVisualIndex];
                         negativeVisualIndex++;
                         negativeFinishedCount--;
@@ -405,7 +411,14 @@ public class BoardViewManager : MonoBehaviour
     {
         if (newState.Equals(currentState) == false)
         {
-            yield return StartCoroutine(InitializePipStateV2(newState));
+            BackGammonChoiceState newStateCopy = new BackGammonChoiceState(newState);
+            print("They are different!");
+            print("Current board:");
+            print(currentState);
+            print("NewBoard:");
+            print(newStateCopy);
+
+            yield return StartCoroutine(InitializePipStateV2(newStateCopy));
         }
         yield return 0;
     }
@@ -575,6 +588,8 @@ public class BoardViewManager : MonoBehaviour
 
         DieUsedInMove(indexFrom, indexTo, isPositivePlayer);
 
+        BoardPoint previousPoint = null;
+
         Transform invisiblePip = null;
         Transform newParent = null;
 
@@ -596,12 +611,12 @@ public class BoardViewManager : MonoBehaviour
         {
             int zone = indexFrom / 6;
             BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
-            BoardPoint currentPoint = boardZone.GetPoint(indexFrom - (zone * 6));
+            previousPoint = boardZone.GetPoint(indexFrom - (zone * 6));
+            
 
-            //int childIndex = boardZone.GetYPosition() > 0 ? currentPoint.PipCount() - 1 : 0;
-            int childIndex = currentPoint.PipCount() - 1;
+            int childIndex = previousPoint.PipCount() - 1;
 
-            invisiblePip = currentPoint.GetPip(childIndex);
+            invisiblePip = previousPoint.GetPip(childIndex);
             currentState.board[indexFrom] -= (sbyte)valueToAdd;
         }
 
@@ -619,11 +634,11 @@ public class BoardViewManager : MonoBehaviour
             int zone = indexTo / 6;
 
             BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
-            BoardPoint parentPoint = boardZone.GetPoint(indexTo - (zone * 6));
-            newParent = parentPoint.GetPipHolder();
+            BoardPoint newPoint = boardZone.GetPoint(indexTo - (zone * 6));
+            newParent = newPoint.GetPipHolder();
 
             //newSiblingIndex = boardZone.GetYPosition() > 0 ? parentPoint.PipCount() : 0;
-            newSiblingIndex = parentPoint.PipCount();
+            newSiblingIndex = newPoint.PipCount();
 
             if (currentState.board[indexTo] == 0 || (currentState.board[indexTo] / Mathf.Abs(currentState.board[indexTo])) == valueToAdd)
             {
@@ -636,20 +651,24 @@ public class BoardViewManager : MonoBehaviour
                 if (isPositivePlayer)
                 {
                     currentState.enemyEatenCount++;
-                    parentPoint.GetPip(0).SetParent(negativeEaten);
+                    newPoint.GetPip(0).SetParent(negativeEaten);
                 }
                 else
                 {
                     currentState.myEatenCount++;
-                    parentPoint.GetPip(0).SetParent(positiveEaten);
+                    newPoint.GetPip(0).SetParent(positiveEaten);
                 }
 
                 currentState.board[indexTo] = (sbyte)valueToAdd;
             }
         }
-
+        
         invisiblePip.SetParent(newParent);
         invisiblePip.SetSiblingIndex(newSiblingIndex);
+
+        invisiblePip.GetComponent<InvisiblePip>().SetTextAbsolute("");
+        if (previousPoint != null)
+            previousPoint.SetCorrectNumberText();
 
         currentState.myPieces.Clear();
         currentState.enemyPieces.Clear();
@@ -666,22 +685,22 @@ public class BoardViewManager : MonoBehaviour
             }
         }
 
-        // set so that the numbers on the pips are correct before the end of movement
-        foreach (byte index in currentState.myPieces)
-        {
-            int zone = index / 6;
+        //// set so that the numbers on the pips are correct before the end of movement
+        //foreach (byte index in currentState.myPieces)
+        //{
+        //    int zone = index / 6;
 
-            BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
-            BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
-            parentPoint.SetCorrectNumberTextAtStartOfMovement();
-        }
-        foreach (byte index in currentState.enemyPieces)
-        {
-            int zone = index / 6;
-            BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
-            BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
-            parentPoint.SetCorrectNumberTextAtStartOfMovement();
-        }
+        //    BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
+        //    BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
+        //    parentPoint.SetCorrectNumberTextAtStartOfMovement();
+        //}
+        //foreach (byte index in currentState.enemyPieces)
+        //{
+        //    int zone = index / 6;
+        //    BoardZone boardZone = insideBoard.GetChild(zone).GetComponent<BoardZone>();
+        //    BoardPoint parentPoint = boardZone.GetPoint(index - (zone * 6));
+        //    parentPoint.SetCorrectNumberTextAtStartOfMovement();
+        //}
 
         yield return StartCoroutine(HelperSpace.HelperMethods.WaitXFrames(2)); // wait 2 frames so that IsStationary has time to refresh...
         yield return new WaitUntil(() => IsStationary);
@@ -691,7 +710,6 @@ public class BoardViewManager : MonoBehaviour
 
     public IEnumerator DoMoves(BackGammonChanceAction action, bool isPositivePlayer)
     {
-        print("Is stationary: " + IsStationary);
         for (int i = 0; i < action.Count; i++)
         {
             (sbyte, sbyte) movement = action.indexes[i];

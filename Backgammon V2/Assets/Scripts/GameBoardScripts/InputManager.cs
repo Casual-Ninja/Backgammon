@@ -47,7 +47,6 @@ public class InputManager : MonoBehaviour
         {
             if (selectedIndex == -2) // trying to select the pip to move
             {
-                print("Want to move from index: " + boardIndex);
                 foreach ((sbyte, sbyte) move in allowedMoves)
                 {
                     if (move.Item1 == boardIndex)
@@ -63,7 +62,6 @@ public class InputManager : MonoBehaviour
             else // meaning i already selected a pip
             {
                 SetHighlightAllowedPointsFromIndex(selectedIndex, false);
-                print("Want to move to index: " + boardIndex);
                 foreach ((sbyte, sbyte) move in allowedMoves)
                 {
                     if (move.Item1 == selectedIndex && move.Item2 == boardIndex)
@@ -72,8 +70,7 @@ public class InputManager : MonoBehaviour
 
                         // stop the highlight of the selected piece
                         BoardViewManager.instance.HighlightPips(false, new List<int>() { move.Item1 });
-
-                        print("Doing that move!");
+                        
                         waitingForInput = false;
                         yield return StartCoroutine(BoardViewManager.instance.DoMove(selectedIndex, boardIndex, true));
                         waitingForInput = true;
@@ -121,14 +118,13 @@ public class InputManager : MonoBehaviour
 
     private void CalculateAllowedMoves(BackGammonChoiceState choiceState, List<byte> diesLeft)
     {
+        allowedMoves.Clear();
         if (choiceState.myEatenCount == 0 && choiceState.myPieces.Count == 0)
         {
             waitingForInput = false;
-            allowedMoves.Clear();
             return; // game finished...
         }
 
-        allowedMoves.Clear();
         highlightedIndexes.Clear();
 
         if (diesLeft.Count != 0) // i still have dies i haven't used
@@ -207,11 +203,12 @@ public class InputManager : MonoBehaviour
         undoButton.SetActive(true);
         BoardViewManager.instance.ResetUndoMoves();
 
+        yield return StartCoroutine(BoardViewManager.instance.InitializeNewState(choiceState));
+
         print("Started getting input");
         waitingForInput = true;
         highlightedIndexes = new List<int>();
 
-        //BoardViewManager.instance.InitializeNewState(choiceState); // make sure im viewing correct state...
 
         print("Finished initialising!");
 

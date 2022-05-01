@@ -89,8 +89,6 @@ public class OnlineGameManager : MonoBehaviour
     {
         while (user.inGame)
         {
-            print("In game phase...");
-
             BackGammonChanceAction actionInput = null;
             if (user.isPlayerTurn)
             {
@@ -116,15 +114,17 @@ public class OnlineGameManager : MonoBehaviour
                     {
                         case MessageType.MoveIsValid: // the move i wanted to do is valid
                             user.parentState = (BackGammonChoiceState)user.state.Move(user.parentState, actionInput);
+                            print("Move Is Valid:\n" + user.parentState);
                             break;
                         case MessageType.ChanceAction: // server sent the move he wants to do, so read it, and show it
                             BackGammonChanceAction serverMove = BackGammonChanceAction.PorotocolInformation(message.Item1);
                             user.parentState = (BackGammonChoiceState)user.state.Move(user.parentState, serverMove);
-                            print("Doing server move!");
+                            print("Doing server move!\n" + user.parentState);
                             yield return StartCoroutine(viewManager.DoMoves(serverMove, false));
                             break;
                         case MessageType.ChoiceState: // the new choice state of the board
                             user.parentState = BackGammonChoiceState.PorotocolInformation(message.Item1);
+                            print("Got Choice State:\n" + user.parentState);
                             yield return StartCoroutine(viewManager.InitializeNewState(user.parentState));
                             break;
                         case MessageType.ChanceState: // the new chance state of the board

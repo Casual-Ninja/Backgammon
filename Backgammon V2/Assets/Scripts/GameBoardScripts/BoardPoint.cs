@@ -27,15 +27,6 @@ public class BoardPoint : MonoBehaviour
             Destroy(pipHolder.GetChild(i).gameObject);
     }
 
-    private int index = -5;
-    public int GetIndex()
-    {
-        if (index != -5)
-            return index;
-
-        return transform.GetSiblingIndex() + transform.parent.GetSiblingIndex() * 6;
-    }
-
     public void SetPointHighlight(bool highlight)
     {
         if (highlight)
@@ -46,28 +37,36 @@ public class BoardPoint : MonoBehaviour
 
     public void SetPipHighlight(bool highlight)
     {
-        GetPip(PipCount() - 1).GetComponent<InvisiblePip>().visualPip.SetHighlight(highlight);
+        for (int i = 0; i < PipCount(); i++)
+        {
+            if (i > 3 || i == PipCount() - 1)
+                GetPip(i).GetComponent<InvisiblePip>().visualPip.SetHighlight(highlight);
+            else
+                GetPip(i).GetComponent<InvisiblePip>().visualPip.SetHighlight(false);
+        }
     }
 
     public void SetCorrectNumberText()
     {
-        for (int i = 0; i < pipHolder.childCount; i++)
+        print("Set text absolute: " + pipHolder.childCount);
+        for (int i = 0; i < PipCount(); i++)
         {
-            if (i <= 4 || i != pipHolder.childCount - 1)
+            if (i <= 3 || (PipCount() == 5))
                 pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAbsolute("");
             else
-                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAbsolute((i + 1).ToString());
+                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAbsolute(PipCount().ToString());
         }
     }
 
     public void SetCorrectNumberTextAtStartOfMovement()
     {
-        for (int i = 0; i < pipHolder.childCount; i++)
+        print("Set text at start: " + pipHolder.childCount);
+        for (int i = 0; i < PipCount(); i++)
         {
-            if (i <= 4 || i != pipHolder.childCount - 1)
+            if (i <= 3 || (PipCount() == 5))
                 pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAtStartOfMovement("");
             else
-                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAtStartOfMovement((i + 1).ToString());
+                pipHolder.GetChild(i).GetComponent<InvisiblePip>().SetTextAtStartOfMovement(PipCount().ToString());
         }
     }
 }

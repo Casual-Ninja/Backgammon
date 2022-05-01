@@ -26,10 +26,10 @@ namespace User
 
             ////start.RotateBoard();
 
-            //BackGammonChoiceState start = new BackGammonChoiceState();
+            BackGammonChoiceState start = new BackGammonChoiceState();
 
-            //Console.WriteLine(start);
-            //BackGammonChanceState startDice = new BackGammonChanceState(new Dice(2, 4));
+            Console.WriteLine(start);
+            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(2, 4));
 
             //List<GAME.Action> actions = startDice.GetLegalActions(start);
 
@@ -46,23 +46,23 @@ namespace User
 
             //Console.WriteLine(HelperMethods.ListToString(startDice.GetLegalActions(start)));
 
-            //MCTSNode parentStartNode = new MCTSNode(start, MCTSNode.CHyperParam);
+            MCTSNode parentStartNode = new MCTSNode(start, MCTSNode.CHyperParam);
 
-            //MCTSNode startNode = new MCTSNode(startDice, parentStartNode);
+            MCTSNode startNode = new MCTSNode(startDice, parentStartNode);
 
-            //Console.WriteLine(parentStartNode);
+            Console.WriteLine(parentStartNode);
 
-            //Stopwatch sw = new Stopwatch();
+            Stopwatch sw = new Stopwatch();
 
-            //sw.Start();
-            ////MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(50000, 8);
+            sw.Start();
+            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(50000, 8);
 
-            ////MCTSNode bestMove = startNode.BestAction(10000);
-            ////MCTSNode bestMove = startNode.BestActionInTime(1000, sw);
-            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(1000, 8);
+            MCTSNode bestMove = startNode.BestAction(200000);
+            //MCTSNode bestMove = startNode.BestActionInTime(1000, sw);
 
-            //sw.Stop();
-            //Console.WriteLine(sw.Elapsed);
+            sw.Stop();
+            Console.WriteLine(sw.Elapsed);
+            Console.WriteLine(MCTSNode.sumOfAmount + " " + MCTSNode.statesChecked + " " + (MCTSNode.sumOfAmount / (float)MCTSNode.statesChecked));
 
             //((BackGammonChoiceState)bestMove.GetState()).RotateBoard();
             //Console.WriteLine(bestMove);
@@ -79,7 +79,7 @@ namespace User
             //Console.WriteLine(BackGammonChanceAction.isBigger);
 
 
-            AiTester.FindBestValueForHyperParamater(0.1f, 2.05f, 0.1f ,20000, 1521);
+            //AiTester.FindBestValueForHyperParamater(0.1f, 2.05f, 0.1f ,20000, 1521);
 
             // with 200,000 ai tester found:
             // 0.1f = 1

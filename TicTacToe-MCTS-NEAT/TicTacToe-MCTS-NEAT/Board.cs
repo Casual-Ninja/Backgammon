@@ -38,8 +38,6 @@ namespace GAME
 
         public abstract State Move(State prevState, Action action);
 
-        public abstract float[] GetNetworkInput();
-
         public abstract bool IsGameOver();
 
         public abstract int GameResult();
@@ -66,9 +64,9 @@ namespace GAME
         }
 
         private Action[] allActions = new Action[] {
-                                      new Dice(1, 1), new Dice(2, 2), new Dice(3, 3), new Dice(4, 4), new Dice(5, 5), new Dice(6, 6), new Dice(1, 2), new Dice(1, 3),
-                                      new Dice(1, 4), new Dice(1, 5), new Dice(1, 6), new Dice(2, 3), new Dice(2, 4), new Dice(2, 5), new Dice(2, 6), new Dice(3, 4),
-                                      new Dice(3, 5), new Dice(3, 6), new Dice(4, 5), new Dice(4, 6), new Dice(5, 6) };
+                                      new BackGammonChoiceAction(1, 1), new BackGammonChoiceAction(2, 2), new BackGammonChoiceAction(3, 3), new BackGammonChoiceAction(4, 4), new BackGammonChoiceAction(5, 5), new BackGammonChoiceAction(6, 6), new BackGammonChoiceAction(1, 2), new BackGammonChoiceAction(1, 3),
+                                      new BackGammonChoiceAction(1, 4), new BackGammonChoiceAction(1, 5), new BackGammonChoiceAction(1, 6), new BackGammonChoiceAction(2, 3), new BackGammonChoiceAction(2, 4), new BackGammonChoiceAction(2, 5), new BackGammonChoiceAction(2, 6), new BackGammonChoiceAction(3, 4),
+                                      new BackGammonChoiceAction(3, 5), new BackGammonChoiceAction(3, 6), new BackGammonChoiceAction(4, 5), new BackGammonChoiceAction(4, 6), new BackGammonChoiceAction(5, 6) };
         
         public sbyte[] board;
         public List<byte> myPieces;
@@ -180,16 +178,6 @@ namespace GAME
         public override State Move(State prevState, Action action)
         {
             return new BackGammonChanceState(action);
-        }
-
-        public override float[] GetNetworkInput()
-        {
-            float[] networkInput = new float[26];
-            for (int i = 0; i < 24; i++)
-                networkInput[i] = board[i];
-            networkInput[24] = myEatenCount;
-            networkInput[25] = enemyEatenCount;
-            return networkInput;
         }
 
         public override bool IsGameOver()
@@ -425,7 +413,7 @@ namespace GAME
         }
     }
 
-    public class Dice : Action
+    public class BackGammonChoiceAction : Action
     {
         public byte dice1 { get; private set; }
         public byte dice2 { get; private set; }
@@ -438,7 +426,7 @@ namespace GAME
             }
         }
 
-        public Dice(byte dice1, byte dice2)
+        public BackGammonChoiceAction(byte dice1, byte dice2)
         {
             this.dice1 = dice1;
             this.dice2 = dice2;
@@ -446,9 +434,9 @@ namespace GAME
 
         public override bool Equals(object obj)
         {
-            if (obj != null && obj is Dice)
+            if (obj != null && obj is BackGammonChoiceAction)
             {
-                Dice other = (Dice)obj;
+                BackGammonChoiceAction other = (BackGammonChoiceAction)obj;
                 if (other.dice1 == dice1 && other.dice2 == dice2)
                     return true;
             }
@@ -457,7 +445,7 @@ namespace GAME
 
         public override Action Copy()
         {
-            return new Dice(dice1, dice2);
+            return new BackGammonChoiceAction(dice1, dice2);
         }
         
         public override string ProtocolInformation()
@@ -465,12 +453,12 @@ namespace GAME
             return $"{dice1.ToString()}{dice2.ToString()}";
         }
 
-        public static Dice PorotocolInformation(string action)
+        public static BackGammonChoiceAction PorotocolInformation(string action)
         {
             byte dice1 = byte.Parse(action[0].ToString());
             byte dice2 = byte.Parse(action[1].ToString());
 
-            return new Dice(dice1, dice2);
+            return new BackGammonChoiceAction(dice1, dice2);
         }
 
         public override string ToString()
@@ -481,7 +469,7 @@ namespace GAME
 
     public class BackGammonChanceState : State
     {
-        private Dice dice;
+        private BackGammonChoiceAction dice;
 
         public byte Dice1 { get { return dice.dice1; } }
         public byte Dice2 { get { return dice.dice2; } }
@@ -493,18 +481,16 @@ namespace GAME
 
         public BackGammonChanceState(Action action)
         {
-            this.dice = (Dice)action;
+            this.dice = (BackGammonChoiceAction)action;
         }
 
         public override State Copy()
         {
-            return new BackGammonChanceState(new Dice(dice.dice1, dice.dice2));
+            return new BackGammonChanceState(new BackGammonChoiceAction(dice.dice1, dice.dice2));
         }
 
         public override bool IsChanceState() => true;
-
-
-        public static int VersionDifferenceCount = 0;
+        
         public override List<Action> GetLegalActions(State prevState)
         {
             List<Action> legalActions = GetLegalActionsInside(prevState);
@@ -669,7 +655,7 @@ namespace GAME
 
                         for (int i = 1; i <= steps; i++)
                         {
-                            towerActionsDict.Add(i * 100 + b, GetActions((sbyte)b, (byte)i, dice.dice1, (byte)state.board[b], state));
+                            towerActionsDict.Add(i * 100 + b, GetActionsFromIndex((sbyte)b, (byte)i, dice.dice1, (byte)state.board[b], state));
                             towersListV2.Add(b);
                         }
                     }
@@ -818,7 +804,7 @@ namespace GAME
             return legalActions;
         }
 
-        private void Regular2PieceMove(List<Action> legalActions, BackGammonChoiceState state, Dice dice)
+        private void Regular2PieceMove(List<Action> legalActions, BackGammonChoiceState state, BackGammonChoiceAction dice)
         {
             bool isEndGame = state.myPieces[0] >= 18;
             bool addedTwo = false;
@@ -1111,7 +1097,7 @@ namespace GAME
         /// <param name="pieceCount">The amount of pieces on that index.</param>
         /// <param name="state">The state of the board.</param>
         /// <returns></returns>
-        private List<Action> GetActions(sbyte index, byte count, byte dice, byte pieceCount, BackGammonChoiceState state)
+        private List<Action> GetActionsFromIndex(sbyte index, byte count, byte dice, byte pieceCount, BackGammonChoiceState state)
         { 
             // i always know that i can move at least once from that index...
             List<Action> lst = new List<Action>();
@@ -1264,8 +1250,7 @@ namespace GAME
 
             return actions;
         }
-
-
+        
         private List<BackGammonChanceAction> EndGameDoubleActions(sbyte[] board, byte die, int dieCount)
         {
             return EndGameDoubleActions(board, die, dieCount, 18, false);
@@ -1430,19 +1415,6 @@ namespace GAME
             return newState;
         }
 
-        private BackGammonChoiceState MoveWithoutRotate(BackGammonChoiceState prevState, BackGammonChanceAction action)
-        {
-            BackGammonChoiceState newState = new BackGammonChoiceState(prevState);
-
-            for (int i = 0; i < action.Count; i++)
-            {
-                (sbyte, sbyte) values = action.indexes[i];
-                CleanMove(newState, values);
-            }
-
-            return newState;
-        }
-
         private void CleanRotatedMove(BackGammonChoiceState state, (sbyte, sbyte) move)
         {
             void PlacePiece(byte finishIndex)
@@ -1484,47 +1456,6 @@ namespace GAME
             }
         }
 
-        private void CleanMove(BackGammonChoiceState state, (sbyte, sbyte) move)
-        {
-            void PlacePiece(byte finishIndex)
-            {
-                switch (state.board[finishIndex])
-                {
-                    case 0: // there is no one there
-                        state.board[finishIndex] = 1;
-                        HelperMethods.InsertToList(state.myPieces, finishIndex);
-                        break;
-                    case -1: // there is enemy there, need to remove him
-                        state.board[finishIndex] = 1;
-                        HelperMethods.InsertToList(state.myPieces, finishIndex);
-                        state.enemyPieces.Remove(finishIndex);
-                        state.enemyEatenCount += 1;
-                        break;
-                    default: // i already had a piece there
-                        state.board[finishIndex] += 1;
-                        break;
-                }
-            }
-
-            if (move.Item1 == -1) // move 2 cant be -1 since there is no way he can bear off if he just got in
-            {
-                state.myEatenCount -= 1;
-                PlacePiece((byte)move.Item2);
-            }
-            else
-            {
-                state.board[move.Item1] -= 1;
-                if (state.board[move.Item1] == 0)
-                    state.myPieces.Remove((byte)move.Item1);
-
-                if (move.Item2 != -1) // im not bearing off
-                {
-                    // move 2 cant be -1 since there is no way he can bear off if he just got in
-                    PlacePiece((byte)move.Item2);
-                }
-            }
-        }
-
         private State RotateBoard(BackGammonChoiceState state)
         {
             sbyte[] newBoard = new sbyte[24];
@@ -1540,11 +1471,6 @@ namespace GAME
                 newMyPositions.Add((byte)(23 - state.enemyPieces[i]));
 
             return new BackGammonChoiceState(newBoard, state.enemyEatenCount, state.myEatenCount, newMyPositions, newEnemyPositions);
-        }
-
-        public override float[] GetNetworkInput()
-        {
-            throw new Exception("Should never call network input on this!");
         }
 
         public override bool IsGameOver()
@@ -1588,7 +1514,7 @@ namespace GAME
             byte dice1 = byte.Parse(state[0].ToString());
             byte dice2 = byte.Parse(state[1].ToString());
 
-            return new BackGammonChanceState(new Dice(dice1, dice2));
+            return new BackGammonChanceState(new BackGammonChoiceAction(dice1, dice2));
         }
 
         public override string ToString()

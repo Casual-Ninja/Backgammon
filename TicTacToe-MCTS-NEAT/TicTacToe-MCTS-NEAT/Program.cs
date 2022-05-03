@@ -29,7 +29,7 @@ namespace User
             BackGammonChoiceState start = new BackGammonChoiceState();
 
             Console.WriteLine(start);
-            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(2, 4));
+            BackGammonChanceState startDice = new BackGammonChanceState(new BackGammonChoiceAction(2, 4));
 
             //List<GAME.Action> actions = startDice.GetLegalActions(start);
 
@@ -57,12 +57,12 @@ namespace User
             sw.Start();
             //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(50000, 8);
 
-            MCTSNode bestMove = startNode.BestAction(200000);
+            MCTSNode bestMove = startNode.BestAction(10000);
             //MCTSNode bestMove = startNode.BestActionInTime(1000, sw);
 
             sw.Stop();
             Console.WriteLine(sw.Elapsed);
-            Console.WriteLine(MCTSNode.sumOfAmount + " " + MCTSNode.statesChecked + " " + (MCTSNode.sumOfAmount / (float)MCTSNode.statesChecked));
+            Console.WriteLine(bestMove);
 
             //((BackGammonChoiceState)bestMove.GetState()).RotateBoard();
             //Console.WriteLine(bestMove);
@@ -129,7 +129,7 @@ namespace User
         {
             BackGammonChoiceState start = new BackGammonChoiceState();
 
-            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(die1, die2));
+            BackGammonChanceState startDice = new BackGammonChanceState(new BackGammonChoiceAction(die1, die2));
 
             MCTSNode parentOfStart = new MCTSNode(start, MCTSNode.CHyperParam);
 
@@ -152,7 +152,7 @@ namespace User
         {
             BackGammonChoiceState start = new BackGammonChoiceState();
 
-            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(die1, die2));
+            BackGammonChanceState startDice = new BackGammonChanceState(new BackGammonChoiceAction(die1, die2));
 
             MCTSNode parentOfStart = new MCTSNode(start, MCTSNode.CHyperParam);
 

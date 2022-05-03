@@ -88,31 +88,7 @@ public class BoardViewManager : MonoBehaviour
         StartCoroutine(SetDiceValues(chanceState));
         StartCoroutine(InputManager.instance.GetInput(cs, chanceState, output));
     }
-
-    private void DestroyAllInvisiblePips(params BoardZone[] zones)
-    {
-        foreach (BoardZone zone in zones)
-        {
-            zone.DestroyAllPips();
-        }
-        foreach (Transform pip in positiveEnd)
-            Destroy(pip.gameObject);
-        foreach (Transform pip in negativeEnd)
-            Destroy(pip.gameObject);
-        foreach (Transform pip in positiveEaten)
-            Destroy(pip.gameObject);
-        foreach (Transform pip in negativeEaten)
-            Destroy(pip.gameObject);
-    }
-
-    private void DestroyAllVisualPips()
-    {
-        foreach (Transform pip in visualPipHolder)
-        {
-            Destroy(pip.gameObject);
-        }
-    }
-
+    
     private void ForceUpdateCanvas()
     {
         LayoutRebuilder.ForceRebuildLayoutImmediate(topLeft.GetComponent<RectTransform>());
@@ -402,22 +378,11 @@ public class BoardViewManager : MonoBehaviour
         CorrectAllPointText();
     }
 
-    public IEnumerator InitializeDeafualtPips()
-    {
-        yield return StartCoroutine(InitializePipStateV2(new BackGammonChoiceState()));
-    }
-
     public IEnumerator InitializeNewState(BackGammonChoiceState newState)
     {
         if (newState.Equals(currentState) == false)
         {
             BackGammonChoiceState newStateCopy = new BackGammonChoiceState(newState);
-            print("They are different!");
-            print("Current board:");
-            print(currentState);
-            print("NewBoard:");
-            print(newStateCopy);
-
             yield return StartCoroutine(InitializePipStateV2(newStateCopy));
         }
         yield return 0;

@@ -275,8 +275,6 @@ namespace BackGammonUser
             this.socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
         }
 
-        public string GetUsername() { return username; }
-
         public void SetAccountInfo(string username, string password)
         {
             this.username = username;
@@ -330,7 +328,7 @@ namespace BackGammonUser
             serverInformation.Enqueue(("", MessageType.DisconnectFromServer));
         }
 
-        public void LoginToServer(IPAddress serverAdderss, Thread mainThread)
+        public void ConnectToServer(IPAddress serverAdderss, Thread mainThread)
         {
             if (!socket.Connected)
             {
@@ -397,18 +395,20 @@ namespace BackGammonUser
 
         protected override void ParseMessage(string message, MessageType messageType)
         {
-            lock (serverInformation)
+            if (messageType == MessageType.RSAEncryptionParamaters)
             {
-                if (messageType == MessageType.RSAEncryptionParamaters)
-                {
-                    RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
-                    rsa.FromXmlString(message);
-                    EncryptionHandler.Initialize(rsa);
-                }
-                else
-                    serverInformation.Enqueue((message, messageType));
-
+                RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
+                rsa.FromXmlString(message);
+                EncryptionHandler.Initialize(rsa);
             }
+            else
+            {
+                lock (serverInformation)
+                {
+                    serverInformation.Enqueue((message, messageType));
+                }
+            }
+            
         }
     }
 }

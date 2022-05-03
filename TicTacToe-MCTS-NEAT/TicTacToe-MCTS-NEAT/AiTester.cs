@@ -250,7 +250,7 @@ namespace TicTacToe_MCTS_NEAT
         {
             BackGammonChoiceState start = new BackGammonChoiceState();
 
-            BackGammonChanceState startDice = new BackGammonChanceState(new Dice(die1, die2));
+            BackGammonChanceState startDice = new BackGammonChanceState(new BackGammonChoiceAction(die1, die2));
 
             MCTSNode parentOfStart = new MCTSNode(start, MCTSNode.CHyperParam);
 

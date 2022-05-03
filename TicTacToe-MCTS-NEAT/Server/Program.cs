@@ -23,8 +23,15 @@ namespace Server
         {
             knownClients = new Dictionary<string, SavingServerUser>();
 
+            LoadData();
+
+            AcceptClients();
+        }
+
+        private static void LoadData()
+        {
             string[] allUserPaths = SaveLoad.GetAllFilesInDirectory(ServerUser.DataPath);
-            
+
             if (allUserPaths != null)
             {
                 foreach (string s in allUserPaths)
@@ -42,8 +49,6 @@ namespace Server
                         Console.WriteLine("Didn't manage to read");
                 }
             }
-
-            AcceptClients();
         }
 
         private static void InteractWithClient(object client)

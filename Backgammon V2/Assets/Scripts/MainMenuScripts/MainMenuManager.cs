@@ -68,7 +68,7 @@ public class MainMenuManager : MonoBehaviour
             print("Trying to connect to server");
             lock (mainThread)
             {
-                user.LoginToServer(serverAddress, mainThread);
+                user.ConnectToServer(serverAddress, mainThread);
             }
             SetFinishedConnecting(1);
         }

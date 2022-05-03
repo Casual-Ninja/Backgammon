@@ -467,32 +467,7 @@ namespace BackGammonUser
                 return legalActions[0];
             }
         }
-
-        private State FindBestMoveInSimulations(int threadCount, params int[] seeds)
-        {
-            MCTSNode parentOfStart = new MCTSNode(parentState, MCTSNode.CHyperParam);
-
-            MCTSNode startNode = new MCTSNode(state, parentOfStart);
-
-            List<GAME.Action> legalActions = state.GetLegalActions(parentState);
-            if (legalActions.Count > 1) // i actually have to think about the move
-            {
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
-
-                MCTSNode bestMove = startNode.BestActionMultiThreading(SimulationCount, threadCount, seeds);
-
-                sw.Stop();
-                Console.WriteLine(sw.Elapsed);
-
-                return bestMove.GetState();
-            }
-            else // only 1 options to do, so no need to think
-            {
-                return state.Move(parentState, legalActions[0]);
-            }
-        }
-
+        
         private void PlayerWon()
         {
             StopGame();
@@ -624,7 +599,12 @@ namespace BackGammonUser
             SaveAllUserData();
         }
 
-        private string GetSpecificUserPath()
+        private void LeaveGame()
+        {
+            this.inGame = false;
+        }
+
+        private string GetSpecificUserPath(string username)
         {
             return DataPath + username;
         }
@@ -632,7 +612,7 @@ namespace BackGammonUser
         private void SaveAllUserData()
         {
             SavingServerUser dataToSave = new SavingServerUser(this);
-            SaveLoad.SaveData(GetSpecificUserPath(), dataToSave);
+            SaveLoad.SaveData(GetSpecificUserPath(username), dataToSave);
         }
 
         protected override void ParseMessage(string message, MessageType messageType)
@@ -654,13 +634,13 @@ namespace BackGammonUser
                     StartGame();
                     break;
                 case MessageType.StopGame:
-                    StopGame();
+                    LeaveGame();
                     break;
                 case MessageType.RequestData:
                     SendInformationToClient(message);
                     break;
                 case MessageType.DisconnectFromServer:
-                    StopGame();
+                    LeaveGame();
                     CloseSocket();
                     break;
                 default:

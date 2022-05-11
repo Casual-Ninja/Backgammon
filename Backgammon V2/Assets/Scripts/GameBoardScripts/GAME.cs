@@ -14,13 +14,13 @@ namespace GAME
 
         public virtual float GetScore(State state) { return 1; } // defualt score for choosing turn
 
-        public abstract override string ToString();
+        public abstract override string ToString(); // the string to print
 
-        public abstract override bool Equals(object obj);
+        public abstract override bool Equals(object obj); // are the actions equal?
 
-        public abstract string ProtocolInformation();
+        public abstract string ProtocolInformation(); // the string to send over the socket connection
 
-        public abstract Action Copy();
+        public abstract Action Copy(); // copy the action
     }
 
     public abstract class State
@@ -32,27 +32,25 @@ namespace GAME
 
         public virtual bool IsChanceState() => false;
 
-        public abstract State Copy();
+        public abstract State Copy(); // copy the state
 
-        public abstract List<Action> GetLegalActions(State prevState);
+        public abstract List<Action> GetLegalActions(State prevState); // all legal actions from the state
 
-        public abstract State Move(State prevState, Action action);
-
-        public abstract float[] GetNetworkInput();
+        public abstract State Move(State prevState, Action action); // move from this state using action (sometimes needs to know prevState)
 
         public abstract bool IsGameOver();
 
         public abstract int GameResult();
 
-        public abstract Action RandomPick(List<Action> legalActions, Random rnd);
+        public abstract Action RandomPick(List<Action> legalActions, Random rnd); // randomly pick an action from legal actions
 
-        public abstract int RandomPick(int listSize, Random rnd);
+        public abstract int RandomPick(int listSize, Random rnd); // randomly pick an index from a list of some length
 
-        public abstract string ProtocolInformation();
+        public abstract string ProtocolInformation(); // the string to send over the socket connection
 
-        public abstract override bool Equals(object obj);
+        public abstract override bool Equals(object obj); // are the states equal?
 
-        public abstract override string ToString();
+        public abstract override string ToString(); // the string to print
     }
 
     public class BackGammonChoiceState : State
@@ -66,9 +64,9 @@ namespace GAME
         }
 
         private Action[] allActions = new Action[]
-                                           { new Dice(1, 1), new Dice(2, 2), new Dice(3, 3), new Dice(4, 4), new Dice(5, 5), new Dice(6, 6), new Dice(1, 2), new Dice(1, 3),
-                                             new Dice(1, 4), new Dice(1, 5), new Dice(1, 6), new Dice(2, 3), new Dice(2, 4), new Dice(2, 5), new Dice(2, 6), new Dice(3, 4),
-                                             new Dice(3, 5), new Dice(3, 6), new Dice(4, 5), new Dice(4, 6), new Dice(5, 6) };
+                                           { new BackGammonChoiceAction(1, 1), new BackGammonChoiceAction(2, 2), new BackGammonChoiceAction(3, 3), new BackGammonChoiceAction(4, 4), new BackGammonChoiceAction(5, 5), new BackGammonChoiceAction(6, 6), new BackGammonChoiceAction(1, 2), new BackGammonChoiceAction(1, 3),
+                                             new BackGammonChoiceAction(1, 4), new BackGammonChoiceAction(1, 5), new BackGammonChoiceAction(1, 6), new BackGammonChoiceAction(2, 3), new BackGammonChoiceAction(2, 4), new BackGammonChoiceAction(2, 5), new BackGammonChoiceAction(2, 6), new BackGammonChoiceAction(3, 4),
+                                             new BackGammonChoiceAction(3, 5), new BackGammonChoiceAction(3, 6), new BackGammonChoiceAction(4, 5), new BackGammonChoiceAction(4, 6), new BackGammonChoiceAction(5, 6) };
 
         public sbyte[] board;
         public List<byte> myPieces;
@@ -182,16 +180,6 @@ namespace GAME
             return new BackGammonChanceState(action);
         }
 
-        public override float[] GetNetworkInput()
-        {
-            float[] networkInput = new float[26];
-            for (int i = 0; i < 24; i++)
-                networkInput[i] = board[i];
-            networkInput[24] = myEatenCount;
-            networkInput[25] = enemyEatenCount;
-            return networkInput;
-        }
-
         public override bool IsGameOver()
         {
             // no need to check my pieces, since the guy who wins will always be the opposite of current turn ( other guy won then now its my turn )
@@ -213,6 +201,22 @@ namespace GAME
                 return -2; // technically could also be -3 but since it rarely happens leave it...
 
             return -1; // i always lost if the game is over
+        }
+
+        public int ActualGameScoreResult()
+        {
+            int countOfPieces = 0;
+            for (int i = 0; i < myPieces.Count; i++)
+                countOfPieces += board[myPieces[i]];
+
+            if (countOfPieces + myEatenCount == 15) // did enemy get out with pieces?
+            {
+                // he didn't, is there an eaten piece / a piece at my last 6 point?
+                if (myEatenCount == 0 && myPieces[0] >= 6)
+                    return 2; // a gammon win
+                return 3; // a backgammon win
+            }
+            return 1; // just a regular win
         }
 
         public override Action RandomPick(List<Action> legalActions, Random rnd)
@@ -409,7 +413,7 @@ namespace GAME
         }
     }
 
-    public class Dice : Action
+    public class BackGammonChoiceAction : Action
     {
         public byte dice1 { get; private set; }
         public byte dice2 { get; private set; }
@@ -422,7 +426,7 @@ namespace GAME
             }
         }
 
-        public Dice(byte dice1, byte dice2)
+        public BackGammonChoiceAction(byte dice1, byte dice2)
         {
             this.dice1 = dice1;
             this.dice2 = dice2;
@@ -430,9 +434,9 @@ namespace GAME
 
         public override bool Equals(object obj)
         {
-            if (obj != null && obj is Dice)
+            if (obj != null && obj is BackGammonChoiceAction)
             {
-                Dice other = (Dice)obj;
+                BackGammonChoiceAction other = (BackGammonChoiceAction)obj;
                 if (other.dice1 == dice1 && other.dice2 == dice2)
                     return true;
             }
@@ -441,7 +445,7 @@ namespace GAME
 
         public override Action Copy()
         {
-            return new Dice(dice1, dice2);
+            return new BackGammonChoiceAction(dice1, dice2);
         }
 
         public override string ProtocolInformation()
@@ -449,12 +453,12 @@ namespace GAME
             return $"{dice1.ToString()}{dice2.ToString()}";
         }
 
-        public static Dice PorotocolInformation(string action)
+        public static BackGammonChoiceAction PorotocolInformation(string action)
         {
             byte dice1 = byte.Parse(action[0].ToString());
             byte dice2 = byte.Parse(action[1].ToString());
 
-            return new Dice(dice1, dice2);
+            return new BackGammonChoiceAction(dice1, dice2);
         }
 
         public override string ToString()
@@ -465,7 +469,7 @@ namespace GAME
 
     public class BackGammonChanceState : State
     {
-        private Dice dice;
+        private BackGammonChoiceAction dice;
 
         public byte Dice1 { get { return dice.dice1; } }
         public byte Dice2 { get { return dice.dice2; } }
@@ -480,12 +484,12 @@ namespace GAME
 
         public BackGammonChanceState(Action action)
         {
-            this.dice = (Dice)action;
+            this.dice = (BackGammonChoiceAction)action;
         }
 
         public override State Copy()
         {
-            return new BackGammonChanceState(new Dice(dice.dice1, dice.dice2));
+            return new BackGammonChanceState(new BackGammonChoiceAction(dice.dice1, dice.dice2));
         }
 
         public override bool IsChanceState() => true;
@@ -589,7 +593,7 @@ namespace GAME
             return legalActions;
         }
 
-        private void Regular2PieceMoveWithDuplicates(List<Action> legalActions, BackGammonChoiceState state, Dice dice)
+        private void Regular2PieceMoveWithDuplicates(List<Action> legalActions, BackGammonChoiceState state, BackGammonChoiceAction dice)
         {
             bool isEndGame = state.myPieces[0] >= 18;
             bool addedTwo = false;
@@ -795,8 +799,7 @@ namespace GAME
         {
             BackGammonChoiceState state = new BackGammonChoiceState((BackGammonChoiceState)prevState);
             List<Action> legalActions = new List<Action>();
-
-            // Supposedly finished all the double options, didn't yet do non double bearing off...
+            
             if (dice.dice1 == dice.dice2) // this is a double!
             {
                 byte dCount = 4;
@@ -837,9 +840,6 @@ namespace GAME
                     }
                 }
 
-                // list of all towers able to be used, and also the amount of times they can be used...
-                //List<(byte, byte)> towerTable = new List<(byte, byte)>();
-
                 List<byte> towersListV2 = new List<byte>();
 
                 Dictionary<int, List<Action>> towerActionsDict = new Dictionary<int, List<Action>>();
@@ -854,7 +854,6 @@ namespace GAME
                     {
                         maxPlay += steps;
                         steps = Math.Min(steps, dCount);
-                        //towerTable.Add((b, steps));
 
                         for (int i = 1; i <= steps; i++)
                         {
@@ -1008,7 +1007,7 @@ namespace GAME
             return legalActions;
         }
 
-        private void Regular2PieceMove(List<Action> legalActions, BackGammonChoiceState state, Dice dice)
+        private void Regular2PieceMove(List<Action> legalActions, BackGammonChoiceState state, BackGammonChoiceAction dice)
         {
             bool isEndGame = state.myPieces[0] >= 18;
             bool addedTwo = false;
@@ -1734,11 +1733,6 @@ namespace GAME
             return new BackGammonChoiceState(newBoard, state.enemyEatenCount, state.myEatenCount, newMyPositions, newEnemyPositions);
         }
 
-        public override float[] GetNetworkInput()
-        {
-            throw new Exception("Should never call network input on this!");
-        }
-
         public override bool IsGameOver()
         {
             return false;
@@ -1793,7 +1787,7 @@ namespace GAME
             byte dice1 = byte.Parse(state[0].ToString());
             byte dice2 = byte.Parse(state[1].ToString());
 
-            return new BackGammonChanceState(new Dice(dice1, dice2));
+            return new BackGammonChanceState(new BackGammonChoiceAction(dice1, dice2));
         }
 
         public override string ToString()
@@ -1841,6 +1835,7 @@ namespace GAME
         public BackGammonChanceAction()
         {
             this.indexes = new (sbyte, sbyte)[4];
+            this.Count = 0;
         }
 
         public BackGammonChanceAction(BackGammonChanceAction copy)
@@ -1951,81 +1946,7 @@ namespace GAME
 
         public override float GetScore(State prevState)
         {
-            if (Count == 0)
-                return 1;
-            float score = 1;
-
-            BackGammonChoiceState actualState = (BackGammonChoiceState)prevState;
-            int maxEnemyIndex = actualState.enemyPieces.Count == 0 ? 25 : actualState.enemyPieces[actualState.enemyPieces.Count - 1];
-
-            // go over moves
-            List<IndexCounter> indexesInfo = new List<IndexCounter>(Count * 2);
-
-            for (int i = 0; i < Count; i++)
-            {
-                bool found = false;
-                for (int j = 0; j < indexesInfo.Count; j++)
-                {
-                    if (indexesInfo[j].index == indexes[i].Item1)
-                    {
-                        indexesInfo[j] = new IndexCounter(indexes[i].Item1, indexesInfo[j].count - 1);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                    indexesInfo.Add(new IndexCounter(indexes[i].Item1, -1));
-
-                if (indexes[i].Item2 != -1)
-                {
-                    found = false;
-
-                    for (int j = 0; j < indexesInfo.Count; j++)
-                    {
-                        if (indexesInfo[j].index == indexes[i].Item2)
-                        {
-                            indexesInfo[j] = new IndexCounter(indexes[i].Item2, indexesInfo[j].count + 1);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found)
-                        indexesInfo.Add(new IndexCounter(indexes[i].Item2, 1));
-                }
-            }
-
-            for (int i = 0; i < indexesInfo.Count; i++)
-            {
-                if (indexesInfo[i].index > maxEnemyIndex) // im after the max enemy index, so no need to check this index for building houses
-                    continue;
-
-                sbyte stateIndexCount = actualState.board[indexesInfo[i].index];
-                if (indexesInfo[i].count < 0) // meaning i already had a piece there and i left more than i got here
-                {
-                    if (stateIndexCount >= 2) // did i already have a house here?
-                    {
-                        if (stateIndexCount - indexesInfo[i].count < 2)
-                            score *= DestroyHouseScore;
-                    }
-                }
-                else
-                {
-                    if (stateIndexCount == -1) // im eating a piece (even if im eating then moving (info.count == 0) i still ate)
-                    {
-                        score *= EatingScore;
-                        stateIndexCount++;
-                    }
-                    if (stateIndexCount <= 1)
-                    {
-                        if (indexesInfo[i].count + stateIndexCount >= 2)
-                            score *= BuildHouseScore;
-                    }
-                }
-            }
-
-            Console.WriteLine(HelperMethods.ListToString(indexesInfo));
-
-            return score;
+            return 1;
         }
 
         public override bool Equals(object obj)
@@ -2126,35 +2047,6 @@ namespace GAME
             }
 
             return s;
-        }
-    }
-
-    public struct IndexCounter
-    {
-        public sbyte index;
-        public sbyte count;
-
-        public IndexCounter(sbyte index, sbyte count)
-        {
-            this.index = index;
-            this.count = count;
-        }
-
-        public IndexCounter(int index, int count)
-        {
-            this.index = (sbyte)index;
-            this.count = (sbyte)count;
-        }
-
-        public IndexCounter(sbyte index, int count)
-        {
-            this.index = index;
-            this.count = (sbyte)count;
-        }
-
-        public override string ToString()
-        {
-            return $"Index: {index} Count: {count}";
         }
     }
 }

@@ -76,11 +76,7 @@ namespace TicTacToe_MCTS_NEAT
 
         public static string RSADecrypt(string dataToDecrypt)
         {
-            Console.WriteLine("Current key params:\n" + rsa.ToXmlString(true));
-
             byte[] data = Convert.FromBase64String(dataToDecrypt);
-
-            Console.WriteLine("encrypted data to decrypt:\n" + HelperSpace.HelperMethods.ArrayToString(data));
 
             return byteConverter.GetString(RSADecrypt(data, false));
         }

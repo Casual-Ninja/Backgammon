@@ -14,13 +14,13 @@ namespace GAME
 
         public virtual float GetScore(State state) { return 1; } // defualt score for choosing turn
 
-        public abstract override string ToString();
+        public abstract override string ToString(); // the string to print
 
-        public abstract override bool Equals(object obj);
+        public abstract override bool Equals(object obj); // are the actions equal?
 
-        public abstract string ProtocolInformation();
+        public abstract string ProtocolInformation(); // the string to send over the socket connection
 
-        public abstract Action Copy();
+        public abstract Action Copy(); // copy the action
     }
 
     public abstract class State
@@ -32,25 +32,25 @@ namespace GAME
 
         public virtual bool IsChanceState() => false;
 
-        public abstract State Copy();
+        public abstract State Copy(); // copy the state
 
-        public abstract List<Action> GetLegalActions(State prevState);
+        public abstract List<Action> GetLegalActions(State prevState); // all legal actions from the state
 
-        public abstract State Move(State prevState, Action action);
+        public abstract State Move(State prevState, Action action); // move from this state using action (sometimes needs to know prevState)
 
-        public abstract bool IsGameOver();
+        public abstract bool IsGameOver(); // did the game finish?
 
-        public abstract int GameResult();
+        public abstract int GameResult(); // the score that the game eneded with
 
-        public abstract Action RandomPick(List<Action> legalActions, Random rnd);
+        public abstract Action RandomPick(List<Action> legalActions, Random rnd); // randomly pick an action from legal actions
         
-        public abstract int RandomPick(int listSize, Random rnd);
+        public abstract int RandomPick(int listSize, Random rnd); // randomly pick an index from a list of some length
 
-        public abstract string ProtocolInformation();
+        public abstract string ProtocolInformation(); // the string to send over the socket connection
 
-        public abstract override bool Equals(object obj);
+        public abstract override bool Equals(object obj); // are the states equal?
 
-        public abstract override string ToString();
+        public abstract override string ToString(); // the string to print
     }
      
     public class BackGammonChoiceState : State
@@ -62,7 +62,7 @@ namespace GAME
                 return MessageType.ChoiceState;
             }
         }
-
+        
         private Action[] allActions = new Action[] {
                                       new BackGammonChoiceAction(1, 1), new BackGammonChoiceAction(2, 2), new BackGammonChoiceAction(3, 3), new BackGammonChoiceAction(4, 4), new BackGammonChoiceAction(5, 5), new BackGammonChoiceAction(6, 6), new BackGammonChoiceAction(1, 2), new BackGammonChoiceAction(1, 3),
                                       new BackGammonChoiceAction(1, 4), new BackGammonChoiceAction(1, 5), new BackGammonChoiceAction(1, 6), new BackGammonChoiceAction(2, 3), new BackGammonChoiceAction(2, 4), new BackGammonChoiceAction(2, 5), new BackGammonChoiceAction(2, 6), new BackGammonChoiceAction(3, 4),
@@ -74,6 +74,7 @@ namespace GAME
         public byte myEatenCount;
         public byte enemyEatenCount;
 
+        // Creates the starting board state
         public BackGammonChoiceState()
         {
             board = new sbyte[] { 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2 };
@@ -134,6 +135,8 @@ namespace GAME
             return new BackGammonChoiceState(this);
         }
 
+        // Returns whether the game is in the end game phase:
+        // can the pieces go out of the board now
         public bool IsEndGame()
         {
             if (myEatenCount == 0 && (myPieces.Count == 0 || myPieces[0] >= 18))
@@ -141,6 +144,7 @@ namespace GAME
             return false;
         }
 
+        // rotates the board, so that the enemy becomes me and i become the enemy
         public void RotateBoard()
         {
             sbyte[] newBoard = new sbyte[24];
@@ -165,21 +169,41 @@ namespace GAME
             myPieces = newMyPositions;
         }
 
+        /// <summary>
+        /// Returns one of the starting actions
+        /// </summary>
+        /// <param name="rnd">The random object to use</param>
+        /// <returns>Returns the dice that are allegible for first turn (not double)</returns>
         public Action GetStartingAction(Random rnd)
         {
             return allActions[HelperMethods.RandomValue(6, allActions.Length, rnd)];
         }
-
+        
+        /// <summary>
+        /// Returns all the legal actions from this state.
+        /// </summary>
+        /// <param name="prevState">Not needed!</param>
+        /// <returns>Returns all dice options.</returns>
         public override List<Action> GetLegalActions(State prevState)
         {
             return new List<Action>(allActions);
         }
 
+        /// <summary>
+        /// Creates a new State by doing the action from this state
+        /// </summary>
+        /// <param name="prevState">Not needed.</param>
+        /// <param name="action">What the new dice are.</param>
+        /// <returns>Returns a new ChanceState with the correct dice.</returns>
         public override State Move(State prevState, Action action)
         {
             return new BackGammonChanceState(action);
         }
 
+        /// <summary>
+        /// Returns game state.
+        /// </summary>
+        /// <returns>Returns true if the game ended.</returns>
         public override bool IsGameOver()
         {
             // no need to check my pieces, since the guy who wins will always be the opposite of current turn ( other guy won then now its my turn )
@@ -189,10 +213,12 @@ namespace GAME
             return true;
         }
 
+        /// <summary>
+        /// Returns the result of the game.
+        /// </summary>
+        /// <returns>Returns the score that the enemy won from this game.</returns>
         public override int GameResult()
         {
-            //return -1;
-
             int count = 0;
             for (int i = 0; i < myPieces.Count; i++)
                 count += board[myPieces[i]];
@@ -202,7 +228,11 @@ namespace GAME
 
             return -1; // i always lost if the game is over
         }
-
+        
+        /// <summary>
+        /// Accurate representation of the result
+        /// </summary>
+        /// <returns>Returns the correct score the player won </returns>
         public int ActualGameScoreResult()
         {
             int countOfPieces = 0;
@@ -219,6 +249,12 @@ namespace GAME
             return 1; // just a regular win
         }
 
+        /// <summary>
+        /// accurately pick an action from all given options.
+        /// </summary>
+        /// <param name="legalActions">The legal actions available (all the dice options).</param>
+        /// <param name="rnd">The random object to use.</param>
+        /// <returns>Returns a correctly randomized action.</returns>
         public override Action RandomPick(List<Action> legalActions, Random rnd)
         {
             if (HelperMethods.RandomValue(0, 6, rnd) == 0) // pick from doubles?
@@ -227,6 +263,12 @@ namespace GAME
                 return legalActions[HelperMethods.RandomValue(6, 21, rnd)];
         }
 
+        /// <summary>
+        /// accurately pick an action from all given options.
+        /// </summary>
+        /// <param name="listSize">The size of the list to pick from.</param>
+        /// <param name="rnd">The random object to use.</param>
+        /// <returns>Returns a correctly randomized action.</returns>
         public override int RandomPick(int listSize, Random rnd)
         {
             if (HelperMethods.RandomValue(0, 6, rnd) == 0) // pick from doubles?
@@ -384,6 +426,10 @@ namespace GAME
             return s;            
         }
 
+        /// <summary>
+        /// Returns a string representing the State.
+        /// </summary>
+        /// <returns>Returns a string representing the State.</returns>
         public override string ProtocolInformation()
         {
             string info = "";
@@ -396,6 +442,11 @@ namespace GAME
             return info; // will look like: "1,0,-2,5...,0,1"
         }
 
+        /// <summary>
+        /// Creates a new state object by parsing the data in the string
+        /// </summary>
+        /// <param name="state">The string representing the state.</param>
+        /// <returns>Returns The corresponding State.</returns>
         public static BackGammonChoiceState PorotocolInformation(string state)
         {
             Console.WriteLine(state);
@@ -447,12 +498,21 @@ namespace GAME
         {
             return new BackGammonChoiceAction(dice1, dice2);
         }
-        
+
+        /// <summary>
+        /// Returns a string representing the Action.
+        /// </summary>
+        /// <returns>Returns a string representing the Action.</returns>
         public override string ProtocolInformation()
         {
             return $"{dice1.ToString()}{dice2.ToString()}";
         }
 
+        /// <summary>
+        /// Creates a new action object by parsing the data in the string
+        /// </summary>
+        /// <param name="action">The string representing the action.</param>
+        /// <returns>Returns The corresponding Action.</returns>
         public static BackGammonChoiceAction PorotocolInformation(string action)
         {
             byte dice1 = byte.Parse(action[0].ToString());
@@ -490,86 +550,31 @@ namespace GAME
         }
 
         public override bool IsChanceState() => true;
-        
+
+        /// <summary>
+        /// Finds all legal actions without duplicates, where duplicates are:
+        /// actions with the same end result.
+        /// </summary>
+        /// <param name="prevState">The previous state (pieces positions).</param>
+        /// <returns>Returns a list of all legal actions without duplicates.</returns>
         public override List<Action> GetLegalActions(State prevState)
         {
             List<Action> legalActions = GetLegalActionsInside(prevState);
-            if (legalActions.Count == 0)
-                legalActions.Add(new BackGammonChanceAction());
-
-            //List<Action> legalActionsV2 = GetLegalActionsInsideV2(prevState);
-            //if (legalActionsV2.Count == 0)
-            //    legalActionsV2.Add(new BackGammonChanceAction());
-
-            //if (HelperMethods.HoldSameItems(legalActions, legalActionsV2) == false)
-            //{
-            //    Console.WriteLine("The board with the problem:\n" + prevState);
-            //    Console.WriteLine("Dice: " + dice);
-            //    Console.WriteLine($"Current legal actions {legalActions.Count}:\n{HelperMethods.ListToString(legalActions)}");
-            //    Console.WriteLine($"new legal actions {legalActionsV2.Count}:\n{HelperMethods.ListToString(legalActionsV2)}");
-
-            //    Console.Write("The missing actions in v2 are: ");
-            //    foreach (Action act in legalActions)
-            //    {
-            //        if (legalActionsV2.Contains(act) == false)
-            //        {
-            //            Console.Write(act + ", ");
-            //        }
-            //    }
-            //    Console.WriteLine();
-
-            //    Console.Write("The added actions in v2 are: ");
-            //    foreach (Action act in legalActionsV2)
-            //    {
-            //        if (legalActions.Contains(act) == false)
-            //        {
-            //            Console.Write(act + ", ");
-            //        }
-            //    }
-            //    Console.WriteLine();
-
-            //    Console.Write("The duplicate actions in v2 are: ");
-            //    for (int i = 0; i < legalActionsV2.Count; i++)
-            //    {
-            //        int duplicateCount = 0;
-            //        for (int j = i + 1; j < legalActionsV2.Count; j++)
-            //        {
-            //            if (legalActionsV2[i].Equals(legalActionsV2[j]))
-            //            {
-            //                legalActionsV2.RemoveAt(j);
-            //                j--;
-            //                duplicateCount++;
-            //            }
-            //        }
-            //        if (duplicateCount != 0)
-            //            Console.Write(legalActionsV2[i] + $" {duplicateCount} times || ");
-            //    }
-            //    Console.WriteLine();
-
-            //    throw new Exception("They are not the same!");
-            //    VersionDifferenceCount++;
-            //}
-
-            //List<(BackGammonChoiceState, Action)> newStates = new List<(BackGammonChoiceState, Action)>();
-            //foreach (Action action in legalActions)
-            //{
-            //    BackGammonChoiceState checkNewState = (BackGammonChoiceState)Move(prevState, action);
-            //    bool found = false;
-            //    foreach ((BackGammonChoiceState, Action) newState in newStates)
-            //        if (checkNewState.Equals(newState.Item1))
-            //        {
-            //            found = true;
-            //            Console.WriteLine("There is duplicate: " + action + " other action: " + newState.Item2);
-            //            break;
-            //        }
-
-            //    if (!found)
-            //        newStates.Add((checkNewState, action));
-            //}
+            if (legalActions.Count == 0) // no moves available
+            {
+                legalActions.Add(new BackGammonChanceAction()); // add an "empty" move
+                Console.WriteLine("Im here actually?");
+            }
 
             return legalActions;
         }
 
+        /// <summary>
+        /// Moves using the action, and checks if one of the legal actions results in the same state.
+        /// </summary>
+        /// <param name="prevState">The previous state (pieces positions).</param>
+        /// <param name="action">The action to check.</param>
+        /// <returns>Returns true if its a legal move.</returns>
         public bool IsLegalMove(State prevState, Action action)
         {
             if (action is BackGammonChanceAction == false)
@@ -577,31 +582,39 @@ namespace GAME
 
             List<Action> legalActions = GetLegalActions(prevState);
 
+            // the resulting state
             State resultingState = Move(prevState, action);
 
             for (int i = 0; i < legalActions.Count; i++)
             {
+                // move using this action, and see if its the result same as the checked action.
                 if (Move(prevState, legalActions[i]).Equals(resultingState))
                     return true;
             }
             return false;
         }
 
+        /// <summary>
+        /// Calculates all legal actions.
+        /// </summary>
+        /// <param name="prevState">The previous state (pieces positions).</param>
+        /// <returns>Returns all legal actions.</returns>
         private List<Action> GetLegalActionsInside(State prevState)
         {
             BackGammonChoiceState state = new BackGammonChoiceState((BackGammonChoiceState)prevState);
             List<Action> legalActions = new List<Action>();
-
-            // Supposedly finished all the double options, didn't yet do non double bearing off...
+            
             if (dice.dice1 == dice.dice2) // this is a double!
             {
                 byte dCount = 4;
 
                 if (state.myEatenCount > 0) // i need to remove from eaten pieces
                 {
-                    if (state.board[dice.dice1 - 1] < -1)
+                    if (state.board[dice.dice1 - 1] < -1) // can i enter the eaten pieces?
+                    {
                         return legalActions; // return empty list, since i cant move at all
-                    else
+                    }
+                    else // i can enter the pieces
                     {
                         dCount -= Math.Min((byte)4, state.myEatenCount);
 
@@ -633,10 +646,7 @@ namespace GAME
                     }
                 }
 
-                // list of all towers able to be used, and also the amount of times they can be used...
-                //List<(byte, byte)> towerTable = new List<(byte, byte)>();
-
-                List<byte> towersListV2 = new List<byte>();
+                List<byte> towersListV2 = new List<byte>(); // a list of towers able to move from.
 
                 Dictionary<int, List<Action>> towerActionsDict = new Dictionary<int, List<Action>>();
 
@@ -644,6 +654,7 @@ namespace GAME
                 foreach (byte b in state.myPieces)
                 {
                     byte steps = 0;
+                    // find how many individual moves i can do from this index
                     for (byte i = (byte)(b + dice.dice1); i < 24 && state.board[i] >= -1 && steps < dCount; i += dice.dice1)
                         steps += (byte)state.board[b];
 
@@ -651,25 +662,27 @@ namespace GAME
                     {
                         maxPlay += steps;
                         steps = Math.Min(steps, dCount); // the max amount of moves possible to make from this index
-                        //towerTable.Add((b, steps));
 
                         for (int i = 1; i <= steps; i++)
                         {
+                            // add to the dictionary the move from this index
                             towerActionsDict.Add(i * 100 + b, GetActionsFromIndex((sbyte)b, (byte)i, dice.dice1, (byte)state.board[b], state));
-                            towersListV2.Add(b);
+                            towersListV2.Add(b); // add this tower as i can move from it
                         }
                     }
                 }
 
+                // get all tower move combinations
                 List<List<(byte, byte)>> towerMoves2 = TowerMovesListV2(towersListV2, dCount);
 
+                // get the actual legal actions from the tower moves
                 legalActions = GetActionList(towerMoves2, towerActionsDict);
-                if (legalActions.Count == 0)
+                if (legalActions.Count == 0) // if there is no legal action, create an empty one
                     legalActions.Add(new BackGammonChanceAction());
 
-                if (dCount != 4)
+                if (dCount != 4) // did i enter eaten pieces?
                 {
-                    foreach (Action action in legalActions)
+                    foreach (Action action in legalActions) // foreach action i found, add the entering of pieces
                     {
                         BackGammonChanceAction ca = (BackGammonChanceAction)action;
 
@@ -740,22 +753,22 @@ namespace GAME
             }
             else // not a double, find moves regularly
             {
-                if (state.myEatenCount == 0)
+                if (state.myEatenCount == 0) // i dont have any eaten pieces.
                 {
                     Regular2PieceMove(legalActions, state, dice);
                 }
-                else if (state.myEatenCount >= 2)
+                else if (state.myEatenCount >= 2) // i have at least 2 eaten pieces
                 {
-                    if (state.board[dice.dice1 - 1] >= -1)
+                    if (state.board[dice.dice1 - 1] >= -1) // can i enter with the first die?
                     {
-                        if (state.board[dice.dice2 - 1] >= -1)
+                        if (state.board[dice.dice2 - 1] >= -1) // can i also enter with the secon die?
                             legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(2)
                                             { (-1, (sbyte)(dice.dice1 - 1)), (-1, (sbyte)(dice.dice2 - 1))}));
-                        else
+                        else // i can only enter with the first die
                             legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
                                             { (-1, (sbyte)(dice.dice1 - 1))}));
                     }
-                    else if (state.board[dice.dice2 - 1] >= -1)
+                    else if (state.board[dice.dice2 - 1] >= -1) // can i enter with the second die?
                         legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
                                             { (-1, (sbyte)(dice.dice2 - 1))}));
                 }
@@ -764,7 +777,7 @@ namespace GAME
                     bool added = false;
                     void RegularOneEaten(byte die1, byte die2, bool isFirst)
                     {
-                        if (state.board[die1 - 1] >= -1)
+                        if (state.board[die1 - 1] >= -1) // if i can enter using the current picked die
                         {
                             // i can only move with the piece that entered if its clear && (im first || at least one enter option isn't clear)
                             if (state.board[die1 + die2 - 1] >= -1 && (isFirst || state.board[die1 - 1] <= -1 || state.board[die2 - 1] <= -1))
@@ -779,9 +792,9 @@ namespace GAME
 
                             foreach (byte b in state.myPieces)
                             {
-                                if (b + die2 >= 24)
+                                if (b + die2 >= 24) // cannot leave as i just entered an eaten piece
                                     break;
-                                if (b != die1 - 1 && state.board[b + die2] >= -1)
+                                if (b != die1 - 1 && state.board[b + die2] >= -1) // can i move with this piece?
                                 {
                                     if (!added)
                                         legalActions.Clear();
@@ -791,11 +804,12 @@ namespace GAME
                                     added = true;
                                 }
                             }
-                            if (!added)
+                            if (!added) // only add this option if didn't yet make a longer move
                                 legalActions.Add(new BackGammonChanceAction(new List<(sbyte, sbyte)>(1)
                                             { (-1, (sbyte)(die1 - 1))}));
                         }
                     }
+                    // each option for a different die
                     RegularOneEaten(dice.dice1, dice.dice2, true);
                     RegularOneEaten(dice.dice2, dice.dice1, false);
                 }
@@ -967,13 +981,20 @@ namespace GAME
                 }
             }
         }
-        
+
+        /// <summary>
+        /// Returns a list, of all the options of the tower move counts:
+        /// from: {A, A, B}, 2 -> { {A, A}, {A, B} }
+        /// </summary>
+        /// <param name="towers">The list of all towers: (AABCDDDF)</param>
+        /// <param name="dCount">The amount of dice available.</param>
+        /// <returns>Returns a list, of all the options of the tower move counts.</returns>
         private List<List<(byte, byte)>> TowerMovesListV2(List<byte> towers, byte dCount)
         {
             List<List<(byte, byte)>> towerMovesList = new List<List<(byte, byte)>>();
             if (dCount == 0 || towers.Count == 0)
-                return towerMovesList;
-            if (towers.Count <= dCount)
+                return towerMovesList; // no towers or no die, so just empty list
+            if (towers.Count <= dCount) // just use all the towers available
             {
                 towerMovesList.Add(ListToTable(towers));
                 return towerMovesList;
@@ -1766,35 +1787,6 @@ namespace GAME
             }
 
             return s;
-        }
-    }
-    
-    public struct IndexCounter
-    {
-        public sbyte index;
-        public sbyte count;
-
-        public IndexCounter(sbyte index, sbyte count)
-        {
-            this.index = index;
-            this.count = count;
-        }
-
-        public IndexCounter(int index, int count)
-        {
-            this.index = (sbyte)index;
-            this.count = (sbyte)count;
-        }
-
-        public IndexCounter(sbyte index, int count)
-        {
-            this.index = index;
-            this.count = (sbyte)count;
-        }
-
-        public override string ToString()
-        {
-            return $"Index: {index} Count: {count}";
         }
     }
 }

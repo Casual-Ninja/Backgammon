@@ -155,34 +155,31 @@ namespace BackGammonUser
         }
 
         /// <summary>
-        /// Receives the information with the used protocol (message length prefix). A return value indicates whethe the reading was succesfull.
+        /// Receives the information with the used protocol (message length prefix + type of message)
         /// </summary>
         /// <param name="information">The information that was received.</param>
-        /// <returns>True if received all data succesfully.</returns>
         private void ReceiveInformation(out string information)
         {
-            //005hello
-            int amountRead = socket.Receive(lengthBuffer);
+            int amountRead = socket.Receive(lengthBuffer); // the length of the message
             if (amountRead == 0) // client disconnected
                 throw new Exception("socket disconnected");
 
-            string lengthString = GetStringFromEncodedData(lengthBuffer);
+            string lengthString = GetStringFromEncodedData(lengthBuffer); // get the length in string format
             int lengthParsed;
-            if (int.TryParse(lengthString, out lengthParsed)) // managed to parse the length
+            if (int.TryParse(lengthString, out lengthParsed)) // try to parse the length
             {
                 if (informationBuffer == null || informationBuffer.Length != lengthParsed)
                     informationBuffer = new byte[lengthParsed];
 
-                amountRead = socket.Receive(informationBuffer);
-                if (amountRead == 0)
+                amountRead = socket.Receive(informationBuffer); // read the actual message
+                if (amountRead == 0) // client disconnected (shouldn't happen here...)
                     throw new Exception("socket disconnected");
 
-                information = GetStringFromEncodedData(informationBuffer);
+                information = GetStringFromEncodedData(informationBuffer); // decode the message
             }
             else // something went wrong! thats not a number, this can only happen if the client isn't using the correct protocol...
             {
                 // i know this is client error because im using tcp so no way its sending problem
-                // don't know what to do... maybe just drop the connection with him?
                 throw new Exception("Didn't manage to parse the length!");
             }
         }
@@ -211,23 +208,25 @@ namespace BackGammonUser
             }
         }
 
-        public virtual void CheckForMessages()
+        public void CheckForMessages()
         {
             string information;
-            ReceiveInformation(out information);
-            if (information.Length >= 3)
+
+            ReceiveInformation(out information); // try to read a message
+
+            if (information.Length >= 3) // there is no problem with the message it self
             {
-                string messageType = information.Substring(0, 3);
+                string messageType = information.Substring(0, 3); // the type of the message
                 int typeValue;
                 if (int.TryParse(messageType, out typeValue))
                 {
                     try
                     {
                         MessageType type = (MessageType)typeValue;
-                        if (information.Length == 3)
+                        if (information.Length == 3) // only sent the type of message, with no info about it (can happen with a few of them)
                             ParseMessage("", type);
                         else
-                            ParseMessage(information.Substring(3, information.Length - 3), type);
+                            ParseMessage(information.Substring(3, information.Length - 3), type); // move it to parsing
                     }
                     catch (Exception exception)
                     {
@@ -240,7 +239,7 @@ namespace BackGammonUser
             }
             else
             {
-                Console.WriteLine("Information Wasn't in correct format: Length must be equal or higher than 3.");
+                Console.WriteLine("Information Wasn't in correct format: Length must be equal to, or higher than 3.");
             }
         }
     }
@@ -251,25 +250,19 @@ namespace BackGammonUser
         public const string UserInformationPath = "Information";
         public const string UserPasswordPath = "Password";
 
-        private const float TimeToSearch = 1000; // seconds to think per move
-        private const int SimulationCount = 10000; // roll outs per move
+        private const float TimeToSearch = 2000; // seconds to think per move
         private const int threadsToUse = 8; // 8 threads per move
 
-
-        private Dictionary<string, SavingServerUser> knownClients;
+        
         private HashSet<string> onlineUsers;
 
-        public ServerUser(Socket socket, Dictionary<string, SavingServerUser> knownClients, HashSet<string> onlineUsers)
+        public ServerUser(Socket socket, HashSet<string> onlineUsers)
         {
             if (rnd == null)
                 rnd = new Random();
 
             this.socket = socket;
 
-            lock (knownClients)
-            {
-                this.knownClients = knownClients;
-            }
             lock (onlineUsers)
             {
                 this.onlineUsers = onlineUsers;
@@ -277,6 +270,13 @@ namespace BackGammonUser
 
             AddDataToSend(EncryptionHandler.publicKey, MessageType.RSAEncryptionParamaters);
             PushData();
+        }
+
+        private bool IsCorrectLength(string username, string password)
+        {
+            if (username.Length < 5 || username.Length > 15 || password.Length < 5 || password.Length > 15)
+                return true;
+            return false;
         }
 
         private void LoggInToAccount(string accountInfo)
@@ -288,15 +288,15 @@ namespace BackGammonUser
                 return;
             }
 
-            string[] accountInformationSplit = new string[] { accountInfo.Substring(0, firstChar), accountInfo.Remove(0, firstChar + 1)};
+            string[] accountInformationSplit = accountInfo.Split(',');
 
-            string checkAccountName = accountInformationSplit[0];
-
-            if (checkAccountName.Contains(","))
+            if (accountInformationSplit.Length != 2) // if its not 2 then its in incorect format
             {
-                AddDataToSend("Username cannot contain ','", MessageType.AccountInformationError);
+                AddDataToSend("Username or password cannot contain ','", MessageType.AccountInformationError);
                 return;
             }
+
+            string checkAccountName = accountInformationSplit[0];
 
             lock (onlineUsers)
             {
@@ -311,7 +311,7 @@ namespace BackGammonUser
             string checkAccountPassWord = EncryptionHandler.RSADecrypt(accountInformationSplit[1]);
             Console.WriteLine("information: " + checkAccountName + " || " + checkAccountPassWord);
 
-            if (checkAccountName.Length < 5 || checkAccountPassWord.Length < 5) // password and name must be longer than 5
+            if (IsCorrectLength(checkAccountName, checkAccountPassWord)) // password and name must be longer than 5
             {
                 AddDataToSend("Password and Username length must be greater than 4", MessageType.AccountInformationError);
                 return;
@@ -324,15 +324,10 @@ namespace BackGammonUser
             }
 
             SavingServerUser savedDataOfUser;
-
-            bool accountExists;
-
-            lock (knownClients)
+            object savedValue;
+            if (SaveLoad.LoadData<SavingServerUser>(GetSpecificUserPath(checkAccountName), out savedValue))
             {
-                accountExists = knownClients.TryGetValue(checkAccountName, out savedDataOfUser);
-            }
-            if (accountExists)
-            {
+                savedDataOfUser = (SavingServerUser)savedValue;
                 Console.WriteLine("Account exists...");
 
                 // generate a 128-bit salt using a cryptographically strong random sequence of nonzero values
@@ -357,6 +352,11 @@ namespace BackGammonUser
                     this.information = new InformationContainer(savedDataOfUser.informationDict);
 
                     AddDataToSend("Logged in.", MessageType.AccountInformationOk);
+
+                    lock (onlineUsers)
+                    {
+                        onlineUsers.Add(checkAccountName);
+                    }
                 }
                 else // correct username but incorrect password
                 {
@@ -364,7 +364,7 @@ namespace BackGammonUser
                     AddDataToSend("Incorrect Username or Password", MessageType.AccountInformationError);
                 }
             }
-            else // not a saved account
+            else
             {
                 AddDataToSend("Incorrect Username or Password", MessageType.AccountInformationError);
             }
@@ -376,27 +376,20 @@ namespace BackGammonUser
             string[] accountInformationSplit = accountInfo.Split(',');
             if (accountInformationSplit.Length != 2) // if its not 2 then its in incorect format
             {
-                AddDataToSend("Must be in format: Username,Password", MessageType.AccountInformationError);
+                AddDataToSend("Username or password cannot contain ','", MessageType.AccountInformationError);
                 return;
             }
             string checkAccountName = accountInformationSplit[0];
             string checkAccountPassWord = EncryptionHandler.RSADecrypt(accountInformationSplit[1]);
-            if (checkAccountName.Length < 5 || checkAccountPassWord.Length < 5 || checkAccountName.Length > 15 || checkAccountPassWord.Length > 15) // password and name must be longer than 4
+            if (IsCorrectLength(checkAccountName, checkAccountPassWord)) // password and name must be longer than 4
             {
                 AddDataToSend("Password and Username Length must be between 5 and 15 characters.", MessageType.AccountInformationError);
                 return;
             }
-
-            (string, MessageType) messageToSend;
-
-            bool accountExists = false;
-            lock (knownClients)
+            
+            if (SaveLoad.PathExists(GetSpecificUserPath(checkAccountName)))
             {
-                accountExists = knownClients.ContainsKey(checkAccountName);
-            }
-            if (accountExists) // does this username already exist?
-            {
-                messageToSend = ("Username already exists!", MessageType.AccountInformationError);
+                AddDataToSend("Username already exists!", MessageType.AccountInformationError);
             }
             else
             {
@@ -428,17 +421,15 @@ namespace BackGammonUser
 
                 SavingServerUser newUserSave = new SavingServerUser(this);
 
-                lock (knownClients)
-                {
-                    this.knownClients.Add(this.username, newUserSave); // create this account
-                }
-
                 SaveAllUserData();
 
-                messageToSend = ("", MessageType.AccountInformationOk);
-            }
+                AddDataToSend("", MessageType.AccountInformationOk);
 
-            AddDataToSend(messageToSend.Item1, messageToSend.Item2);
+                lock (onlineUsers)
+                {
+                    onlineUsers.Add(checkAccountName);
+                }
+            }
         }
 
         private GAME.Action FindBestMoveInTime(int threadCount)
@@ -488,16 +479,13 @@ namespace BackGammonUser
             // calculate the computer move
             GAME.Action bestMove = FindBestMoveInTime(threadsToUse);
 
-            AddDataToSend(bestMove.ProtocolInformation(), MessageType.ChanceAction); // send to the player the actual move the server made
+            // send to the player the actual move the server made
+            AddDataToSend(bestMove.ProtocolInformation(), MessageType.ChanceAction); 
 
-            // send the move to the player
             this.parentState = (BackGammonChoiceState)this.state.Move(this.parentState, bestMove);
 
             List<GAME.Action> diceOptions = parentState.GetLegalActions(null);
             this.state = (BackGammonChanceState)parentState.Move(null, diceOptions[rnd.Next(diceOptions.Count)]);
-
-            //AddDataToSend(this.parentState.ProtocolInformation(), MessageType.ChoiceState);
-            AddDataToSend(this.state.ProtocolInformation(), MessageType.ChanceState);
             
             if (this.parentState.IsGameOver()) // computer won!
             {
@@ -505,6 +493,7 @@ namespace BackGammonUser
             }
             else
             {
+                AddDataToSend(this.state.ProtocolInformation(), MessageType.ChanceState);
                 AddDataToSend("", MessageType.SwitchTurn);
                 this.isPlayerTurn = true;
             }
@@ -518,35 +507,35 @@ namespace BackGammonUser
                 PushData();
                 return;
             }
-            if (this.isPlayerTurn == false)
+            if (this.isPlayerTurn == false) // is it the players turn?
                 return;
-
-            BackGammonChanceAction chanceAction = null;
-
-            try
-            {
-                chanceAction = BackGammonChanceAction.PorotocolInformation(moveString);
-            }
+            
+            BackGammonChanceAction chanceAction = null; 
+            // try reading the action made by the player
+            try { chanceAction = BackGammonChanceAction.PorotocolInformation(moveString); }
             catch
-            {
+            {   // failed to read the action, reply with error
                 AddDataToSend("Move format not correct!", MessageType.MoveError);
                 PushData();
                 return;
             }
 
-            bool legalMove = state.IsLegalMove(parentState, chanceAction);
+            bool legalMove = state.IsLegalMove(parentState, chanceAction); // is the move legal
 
-            if (!legalMove)
-            {
+            if (!legalMove) // it is not legal!
+            {   
+                // send to the player the actuall states as he probably has them wrong
                 AddDataToSend(parentState.ProtocolInformation(), MessageType.ChoiceState);
                 AddDataToSend(state.ProtocolInformation(), MessageType.ChanceState);
-
+                // also send an error message
                 AddDataToSend("Move is not legal!", MessageType.MoveError);
                 PushData();
             }
             else
             {
+                // make the move
                 this.parentState = (BackGammonChoiceState)this.state.Move(this.parentState, chanceAction);
+                // generate the new die
                 this.state = new BackGammonChanceState(this.parentState.RandomPick(this.parentState.GetLegalActions(null), rnd));
 
                 if (this.parentState.IsGameOver()) // player won!
@@ -556,7 +545,7 @@ namespace BackGammonUser
                     AddDataToSend("", MessageType.MoveIsValid); // send to the player the move he made was valid
                     AddDataToSend("", MessageType.SwitchTurn); // now its the servers turn to play, so switch turn value
                     this.isPlayerTurn = false;
-                    MakeComputerMove();
+                    MakeComputerMove(); // do the ai move
                 }
             }
         }

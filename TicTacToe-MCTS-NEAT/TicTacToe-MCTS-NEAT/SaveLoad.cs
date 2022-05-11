@@ -65,6 +65,11 @@ namespace TicTacToe_MCTS_NEAT
             }
         }
 
+        public static bool PathExists(string path)
+        {
+            return instance.PathExists(GetActualPath(path));
+        }
+
         private class SaveLoadInstance
         {
             private static Dictionary<string, (bool, object)> saveDictionary = new Dictionary<string, (bool, object)>();
@@ -73,7 +78,6 @@ namespace TicTacToe_MCTS_NEAT
             {
                 if (PathExists(path))
                     return;
-                System.Console.WriteLine("IDK PATH:" + path);
                 int index = path.LastIndexOf('\\');
                 string prevPath = path.Substring(0, index);
                 Directory.CreateDirectory(prevPath);
@@ -82,9 +86,7 @@ namespace TicTacToe_MCTS_NEAT
             private bool SaveToDisk<T>(string path, T value)
             {
                 MakeSurePathExists(path);
-                System.Console.WriteLine($"The value type {value.GetType()}, save to disk: {value}");
                 string jsonText = JsonSerializer.Serialize(value);
-                System.Console.WriteLine("The saved data: " + jsonText);
                 File.WriteAllText(path, jsonText);
                 return true;
             }
@@ -102,7 +104,7 @@ namespace TicTacToe_MCTS_NEAT
                 return false;
             }
 
-            private bool PathExists(string path)
+            public bool PathExists(string path)
             {
                 return File.Exists(path);
             }
@@ -124,13 +126,22 @@ namespace TicTacToe_MCTS_NEAT
                 }
                 else // i dont...
                 {
-                    if (LoadFromDisk<T>(path, out loadedValue)) // try load the data from the disk
+                    try
                     {
-                        saveDictionary.Add(path, (true, loadedValue));
-                        return true;
+                        if (LoadFromDisk<T>(path, out loadedValue)) // try load the data from the disk
+                        {
+                            saveDictionary.Add(path, (true, loadedValue));
+                            return true;
+                        }
+                        else
+                            return false;
                     }
-                    else
+                    catch
+                    {
+                        loadedValue = default(T);
                         return false;
+                    }
+                    
                 }
             }
 

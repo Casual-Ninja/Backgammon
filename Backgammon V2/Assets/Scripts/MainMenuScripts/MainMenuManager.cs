@@ -101,6 +101,16 @@ public class MainMenuManager : MonoBehaviour
         connectToServerThread.Start(newUser);
     }
 
+    public void PressedExitButton()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+      Application.Quit();
+#endif
+
+    }
+
 # if UNITY_EDITOR
     private void OnApplicationQuit()
     {

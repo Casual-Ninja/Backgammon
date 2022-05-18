@@ -168,6 +168,12 @@ public class OnlineGameManager : MonoBehaviour
         SceneManager.LoadScene(0);
     }
 
+    public void PressedLeaveGame()
+    {
+        user.QuitCurrentGame();
+        ReturnToMainMenu();
+    }
+
 # if UNITY_EDITOR
     private void OnApplicationQuit()
     {

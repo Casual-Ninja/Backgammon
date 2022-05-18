@@ -22,9 +22,8 @@ namespace TicTacToe_MCTS_NEAT
             privateKey = rsa.ToXmlString(true);
             oldKeyInfo = privateKey;
 
-            Console.WriteLine(publicKey);
-
-            Console.WriteLine("The key info at start:\n" + oldKeyInfo);
+            Console.WriteLine("Private:\n" + privateKey);
+            Console.WriteLine("Public:\n" + publicKey);
         }
 
         private static byte[] RSAEncrypt(byte[] DataToEncrypt, bool DoOAEPPadding)

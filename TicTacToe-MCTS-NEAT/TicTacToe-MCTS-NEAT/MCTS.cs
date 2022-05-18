@@ -52,15 +52,24 @@ namespace MCTS
             return this.state.GetLegalActions(parent.state);
         }
 
+        /// <summary>
+        /// Gets one random child from the untried actions and adds it to children array.
+        /// </summary>
+        /// <param name="rnd">The random class to use.</param>
+        /// <returns>Returns the new child that was added</returns>
         private MCTSNode Expand(System.Random rnd)
         {
+            // get random action and remove it from list
             int index = HelperMethods.GetRandomIndexFromList(this.untriedActions, rnd);
             Action action = untriedActions[index];
             untriedActions.RemoveAt(index);
 
+            // Get the resulting state of the action picked
             State nextState = this.state.Move(parent.state, action);
+            // create a new node for that state
             MCTSNode childNode = new MCTSNode(nextState, this);
 
+            // add the new node to the children array in the correct postion.
             for (int i = 0; i < children.Length; i++)
             {
                 if (children[i] == null)
@@ -74,7 +83,7 @@ namespace MCTS
                 }
             }
 
-            return childNode;
+            return childNode; // return the new node
         }
 
         private bool IsTerminalNode()
@@ -94,11 +103,12 @@ namespace MCTS
             int mult = -1;
             while (rollOutState.IsGameOver() == false) // while i haven't reached end of game
             {
-                // pick a move (soft play == random moves)
+                // pick an action (soft play == random moves)
                 Action action = RolloutPolicySoftPlay(rollOutState.GetLegalActions(parentState), rollOutState, rnd);
 
                 State temp = rollOutState;
 
+                // go to the next state
                 rollOutState = rollOutState.Move(parentState, action);
                 parentState = temp;
 
@@ -108,7 +118,7 @@ namespace MCTS
                 if (rollOutState.IsChanceState())
                     mult = -mult;
             }
-            // game result if not relative to who played, and so need to multiply by mult
+            // game result is not relative to who played, and so need to multiply by mult
             return rollOutState.GameResult() * mult;
         }
 
@@ -140,11 +150,11 @@ namespace MCTS
         }
 
         /// <summary>
-        /// Calculates the value of the node using UCB.
+        /// Calculates the value of the node using UCT.
         /// </summary>
         /// <param name="child">The node to calculate its value.</param>
-        /// <returns>Returns UCB of the node.</returns>
-        private float CalculateUCB(MCTSNode child)
+        /// <returns>Returns UCT of the node.</returns>
+        private float CalculateUCT(MCTSNode child)
         {
             return ((float)child.score / child.numberOfVisits) +  // exploitation part
                    cHyperParam * (float)System.Math.Sqrt(System.Math.Log(numberOfVisits) / child.numberOfVisits); // exploration part
@@ -154,24 +164,23 @@ namespace MCTS
         /// Returns the child to pick in Selection part of MCTS algorithm
         /// </summary>
         /// <param name="rnd">The random class to use.</param>
-        /// <returns>If child is a die, returns the child randomly. otherwise, returns child with highest UCB score.</returns>
+        /// <returns>If child is a die, returns the child randomly. 
+        /// otherwise, returns child with highest UCT score.</returns>
         private MCTSNode BestChild(System.Random rnd)
         {
             // pick a random starting best child (picks the die randomly based on chance of the die happening)
             MCTSNode bestChild = children[state.RandomPick(children.Length, rnd)];
 
             if (children[0].state.IsChanceState()) // if its chance state, return the random child as its the dice
-            {
                 return bestChild;
-            }
 
-            float bestScore = CalculateUCB(bestChild); // calculate UCB for the current best child
+            float bestScore = CalculateUCT(bestChild); // calculate UCT for the current best child
 
-            // go over all children, and find the one with highest UCB score
+            // go over all children, and find the one with highest UCT score
             for (int i = 0; i < this.children.Length; i++)
             {
                 MCTSNode child = children[i];
-                float score = CalculateUCB(child);
+                float score = CalculateUCT(child);
 
                 if (score > bestScore)
                 {
@@ -223,7 +232,7 @@ namespace MCTS
         }
 
         /// <summary>
-        /// Selection Part of MCTS algorithm.
+        /// Selection and Expansion Part of MCTS algorithm.
         /// </summary>
         /// <param name="rnd">The random class to use.</param>
         /// <returns>A node that is either terminal or not fully expanded.</returns>
@@ -416,10 +425,11 @@ namespace MCTS
                 // make a copy of the needed nodes
                 MCTSNode newParentNode = new MCTSNode(parent.state.Copy(), MCTSNode.CHyperParam);
                 MCTSNode newStartNode = new MCTSNode(state.Copy(), newParentNode);
+                // set the parameters for the thread (max time of search and rnd to use)
                 newStartNode.threadingSimulationTime = maxTime;
                 newStartNode.rnd = new System.Random();
 
-                // start the thread, and remmember it
+                // start the thread, and remember it
                 workedOnNodes[i] = newStartNode;
                 Thread newThread = new Thread(new ThreadStart(newStartNode.CalculateTreeNumbersWithTime));
                 threads[i] = newThread;
@@ -429,16 +439,6 @@ namespace MCTS
             
             threadingSimulationTime = maxTime;
             rnd = new System.Random();
-            
-            // this is used for debuging values (not for the actual algorithm)
-            int[] oldVisits = null;
-
-            if (children != null)
-            {
-                oldVisits = new int[children.Length];
-                for (int i = 0; i < children.Length; i++)
-                    oldVisits[i] = children[i] == null ? 0 : children[i].numberOfVisits;
-            }
 
             System.Console.WriteLine("Created the threads");
 
@@ -456,29 +456,17 @@ namespace MCTS
             // add up the values from all the threads
             foreach (MCTSNode tree in workedOnNodes)
             {
-                //AddValuesOfWholeTree(tree);
                 AddValuesOfFirstBranches(tree);
             }
 
             // find the best child
             MCTSNode bestChild = children[0];
-
-            int totalVisits = 0;
-            int newVisits = 0;
-
+            
             for (int i = 0; i < children.Length; i++)
             {
-                totalVisits += children[i].numberOfVisits;
-                if (oldVisits == null)
-                    newVisits += children[i].numberOfVisits;
-                else
-                    newVisits += children[i].numberOfVisits - oldVisits[i];
-
                 if (children[i].numberOfVisits > bestChild.numberOfVisits)
                     bestChild = children[i];
             }
-
-            System.Console.WriteLine("Total: " + totalVisits + " New Vists: " + newVisits);
 
             System.Console.WriteLine("Best Wins: " + bestChild.score + " Best Visits: " + bestChild.numberOfVisits);
             return bestChild;

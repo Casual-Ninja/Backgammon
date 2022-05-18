@@ -561,10 +561,7 @@ namespace GAME
         {
             List<Action> legalActions = GetLegalActionsInside(prevState);
             if (legalActions.Count == 0) // no moves available
-            {
                 legalActions.Add(new BackGammonChanceAction()); // add an "empty" move
-                Console.WriteLine("Im here actually?");
-            }
 
             return legalActions;
         }
@@ -616,8 +613,8 @@ namespace GAME
                     }
                     else // i can enter the pieces
                     {
-                        dCount -= Math.Min((byte)4, state.myEatenCount);
-
+                        dCount -= Math.Min((byte)4, state.myEatenCount); // remove from d count the used die
+                        // change the state to reflect the pieces moved
                         switch (state.board[dice.dice1 - 1]) // what is on the position i want to enter?
                         {
                             case -1: // an enemy piece
@@ -647,18 +644,18 @@ namespace GAME
                 }
 
                 List<byte> towersListV2 = new List<byte>(); // a list of towers able to move from.
-
+                // A dictionary of the actions that can be taken from a tower with a given amount of die
                 Dictionary<int, List<Action>> towerActionsDict = new Dictionary<int, List<Action>>();
 
                 int maxPlay = 0;
-                foreach (byte b in state.myPieces)
+                foreach (byte b in state.myPieces) // go over all of my pieces
                 {
                     byte steps = 0;
                     // find how many individual moves i can do from this index
                     for (byte i = (byte)(b + dice.dice1); i < 24 && state.board[i] >= -1 && steps < dCount; i += dice.dice1)
                         steps += (byte)state.board[b];
 
-                    if (steps != 0)
+                    if (steps != 0) // can i even move from this index
                     {
                         maxPlay += steps;
                         steps = Math.Min(steps, dCount); // the max amount of moves possible to make from this index
@@ -729,6 +726,7 @@ namespace GAME
                     // if im here, it means all my pieces are in the enemy base, and i have at least 1 more action to make
                     // i need to find all options where at least 1 piece got off the board (otherwise it will be a duplicate of the already existing actions)
 
+                    // returns the actions that can be taken from the end game
                     List<BackGammonChanceAction> endGameActions = EndGameDoubleActions(state.board, dice.dice1, dCount);
 
                     foreach (BackGammonChanceAction act in endGameActions)
@@ -984,7 +982,7 @@ namespace GAME
 
         /// <summary>
         /// Returns a list, of all the options of the tower move counts:
-        /// from: {A, A, B}, 2 -> { {A, A}, {A, B} }
+        /// from: {A, A, B}, too -> { {A2}, {A1, B1} }
         /// </summary>
         /// <param name="towers">The list of all towers: (AABCDDDF)</param>
         /// <param name="dCount">The amount of dice available.</param>
@@ -1001,15 +999,20 @@ namespace GAME
             }
             List<byte[]> movesList = new List<byte[]>();
             byte[] currentIndexes = new byte[dCount];
-
+            // Actually get all the options
             TowerMovesListV2(towers, 0, movesList, currentIndexes, dCount);
             // now movesList is populated with correct moves
             foreach (byte[] list in movesList)
-                towerMovesList.Add(ArrayToTable(list));
+                towerMovesList.Add(ArrayToTable(list)); // change it to a list of tables
 
             return towerMovesList;
         }
 
+        /// <summary>
+        /// Creates a table: {(A, 3), (B, 2), (C, 1)} from a list: {A,A,A,B,B,C}
+        /// </summary>
+        /// <param name="list">The list to switch from.</param>
+        /// <returns>Returns the new table.</returns>
         private List<(byte, byte)> ListToTable(List<byte> list)
         {
             List<(byte, byte)> table = new List<(byte, byte)>();
@@ -1035,6 +1038,11 @@ namespace GAME
             return table;
         }
 
+        /// <summary>
+        /// Creates a table: {(A, 3), (B, 2), (C, 1)} from an array: {A,A,A,B,B,C}
+        /// </summary>
+        /// <param name="list">The array to switch from.</param>
+        /// <returns>Returns the new table.</returns>
         private List<(byte, byte)> ArrayToTable(byte[] array)
         {
             List<(byte, byte)> table = new List<(byte, byte)>();
@@ -1071,7 +1079,7 @@ namespace GAME
         private void TowerMovesListV2(List<byte> towers, int startIndex, List<byte[]> towerMovesList, byte[] currentIndexes, byte dCount)
         {
             int i = startIndex + 1;
-            if (dCount == 1)
+            if (dCount == 1) // have only one more tower to add
             {
                 byte[] newCurrIndexes = new byte[currentIndexes.Length];
                 for (int j = 1; j < newCurrIndexes.Length; j++)
@@ -1212,19 +1220,27 @@ namespace GAME
             return lst;
         }
 
+        /// <summary>
+        /// Calculates a list of combinations of actions.
+        /// </summary>
+        /// <param name="towerMovesList">The list of all tower table options.</param>
+        /// <param name="actionsDict">The dict that has all tower to action values: 
+        /// { (amountofTowers * 100 + indexOfTower, list of actions available from that key )... }</param>
+        /// <returns>Returns the list of combinations.</returns>
         private List<Action> GetActionList(List<List<(byte, byte)>> towerMovesList, Dictionary<int, List<Action>> actionsDict)
         {
+            // a hash set to remove the duplicates, since it cant contain two values of the same hashCode
             HashSet<BackGammonChanceAction> existingActions = new HashSet<BackGammonChanceAction>();
 
-            foreach (List<(byte, byte)> towerMoves in towerMovesList)
+            foreach (List<(byte, byte)> towerMoves in towerMovesList) // foreach table of towers
             {
+                // get the curr actions of one row of the table
                 List<Action> currActions = actionsDict[(towerMoves[0].Item2 * 100) + towerMoves[0].Item1];
-                if (towerMoves.Count == 1)
+                if (towerMoves.Count == 1) // is there only one row?
                 {
-                    for (int i = 0; i < currActions.Count; i++)
-                    {
+                    for (int i = 0; i < currActions.Count; i++) // the just add all the actions from it
                         existingActions.Add((BackGammonChanceAction)currActions[i]);
-                    }
+
                     continue;
                 }
 
@@ -1232,10 +1248,12 @@ namespace GAME
 
                 for (int i = 1; i < towerMoves.Count - 1; i++)
                 {
+                    // get actions of new row
                     addedActions = actionsDict[(towerMoves[i].Item2 * 100) + towerMoves[i].Item1];
 
                     List<Action> newActions = new List<Action>(currActions.Count * addedActions.Count);
 
+                    // combine all possibilities of the current actions and the actions from the new row
                     for (int j = 0; j < currActions.Count; j++)
                     {
                         BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
@@ -1248,8 +1266,10 @@ namespace GAME
                     currActions = newActions;
                 }
 
+                // get actions of last row
                 addedActions = actionsDict[(towerMoves[towerMoves.Count - 1].Item2 * 100) + towerMoves[towerMoves.Count - 1].Item1];
 
+                // combine all possibilities of the current actions and the actions from the last row 
                 for (int j = 0; j < currActions.Count; j++)
                 {
                     BackGammonChanceAction currAct = (BackGammonChanceAction)currActions[j];
@@ -1257,11 +1277,12 @@ namespace GAME
                     {
                         BackGammonChanceAction newAct = new BackGammonChanceAction(currAct, (BackGammonChanceAction)addedActions[k]);
 
-                        existingActions.Add(newAct);
+                        existingActions.Add(newAct); //add the end result of actions to the hashset
                     }
                 }
             }
-
+            
+            // change the hashset into a list
             List<Action> actions = new List<Action>(existingActions.Count);
 
             foreach (Action action in existingActions)
@@ -1269,7 +1290,7 @@ namespace GAME
                 actions.Add(action);
             }
 
-            return actions;
+            return actions; // return the list
         }
         
         private List<BackGammonChanceAction> EndGameDoubleActions(sbyte[] board, byte die, int dieCount)
@@ -1291,9 +1312,7 @@ namespace GAME
             // the board is in the bearing off stage, return all actions that can now be taken
             List<BackGammonChanceAction> actions = new List<BackGammonChanceAction>();
             if (dieCount == 0) // if i dont have any moves left, return empty list
-            {
                 return actions;
-            }
             
             // go over all the positions that can be moved no matter what
             for (; i < 24 - die; i++)
@@ -1355,9 +1374,7 @@ namespace GAME
 
                 List<(sbyte, sbyte)> currMoves = new List<(sbyte, sbyte)>();
                 for (int k = 0; k < maxUseAmount; k++)
-                {
                     currMoves.Add(((sbyte)i, -1));
-                }
 
                 if (nextActions.Count == 0)
                 {

@@ -508,7 +508,11 @@ namespace BackGammonUser
                 return;
             }
             if (this.isPlayerTurn == false) // is it the players turn?
+            {
+                AddDataToSend("", MessageType.SwitchTurn);
+                PushData();
                 return;
+            }
             
             BackGammonChanceAction chanceAction = null; 
             // try reading the action made by the player

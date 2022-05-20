@@ -288,11 +288,11 @@ namespace BackGammonUser
                 return;
             }
 
-            string[] accountInformationSplit = accountInfo.Split(',');
+            string[] accountInformationSplit = accountInfo.Split(new char[] { ',' }, 2);
 
             if (accountInformationSplit.Length != 2) // if its not 2 then its in incorect format
             {
-                AddDataToSend("Username or password cannot contain ','", MessageType.AccountInformationError);
+                AddDataToSend("Incorrect Format of account information", MessageType.AccountInformationError);
                 return;
             }
 
@@ -306,8 +306,7 @@ namespace BackGammonUser
                     return;
                 }
             }
-
-            UnicodeEncoding encoder = new UnicodeEncoding();
+            
             string checkAccountPassWord = EncryptionHandler.RSADecrypt(accountInformationSplit[1]);
             Console.WriteLine("information: " + checkAccountName + " || " + checkAccountPassWord);
 
@@ -373,10 +372,10 @@ namespace BackGammonUser
         private void CreateAccount(string accountInfo)
         {
             Console.WriteLine("In create acount method");
-            string[] accountInformationSplit = accountInfo.Split(',');
+            string[] accountInformationSplit = accountInfo.Split(new char[] { ',' }, 2);
             if (accountInformationSplit.Length != 2) // if its not 2 then its in incorect format
             {
-                AddDataToSend("Username or password cannot contain ','", MessageType.AccountInformationError);
+                AddDataToSend("Incorrect Format of account information.", MessageType.AccountInformationError);
                 return;
             }
             string checkAccountName = accountInformationSplit[0];

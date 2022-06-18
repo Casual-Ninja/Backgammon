@@ -250,7 +250,7 @@ namespace BackGammonUser
         public const string UserInformationPath = "Information";
         public const string UserPasswordPath = "Password";
 
-        private const float TimeToSearch = 2000; // seconds to think per move
+        private const float TimeToSearch = 10000; // seconds to think per move
         private const int threadsToUse = 8; // 8 threads per move
 
         

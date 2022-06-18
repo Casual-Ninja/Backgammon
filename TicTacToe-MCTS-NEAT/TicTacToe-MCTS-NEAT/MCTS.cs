@@ -104,7 +104,11 @@ namespace MCTS
             while (rollOutState.IsGameOver() == false) // while i haven't reached end of game
             {
                 // pick an action (soft play == random moves)
-                Action action = RolloutPolicySoftPlay(rollOutState.GetLegalActions(parentState), rollOutState, rnd);
+                //Action action = RolloutPolicySoftPlay(rollOutState.GetLegalActions(parentState), rollOutState, rnd);
+
+                // pick an action (hard play == calculated moves)
+                Action action = RolloutPolicyHardPlay(rollOutState.GetLegalActions(parentState), rollOutState, parentState, rnd);
+                
 
                 State temp = rollOutState;
 
@@ -209,26 +213,25 @@ namespace MCTS
 
         private Action RolloutPolicyHardPlay(List<Action> possibleMoves, State state, State prevState, System.Random rnd)
         {
-            if (state.IsChanceState()) // if its chance state still pick randomly
+            if (state.IsChanceState() == false) // if its chance state still pick randomly
                 return state.RandomPick(possibleMoves, rnd);
 
-            // if its not chance state, chose state corresponding to score
+            // if its not chance state, choose state corresponding to score
             float[] scores = new float[possibleMoves.Count];
             float sumOfScores = 0;
             for (int i = 0; i < possibleMoves.Count; i++)
             {
-                // score ranged between 0 - infinity
-                scores[i] = possibleMoves[i].GetScore(prevState);
+                scores[i] = possibleMoves[i].GetScore(state, prevState);
                 sumOfScores += scores[i];
             }
             float randomValue = HelperMethods.RandomValue(0, sumOfScores, rnd);
-            for (int i = 0; i < scores.Length; i++)
+            for (int i = 0; i < scores.Length - 1; i++)
             {
                 randomValue -= scores[i];
                 if (randomValue <= 0)
                     return possibleMoves[i];
             }
-            return null;
+            return possibleMoves[possibleMoves.Count - 1];
         }
 
         /// <summary>

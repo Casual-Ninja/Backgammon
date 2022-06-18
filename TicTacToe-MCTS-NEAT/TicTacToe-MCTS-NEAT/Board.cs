@@ -12,7 +12,7 @@ namespace GAME
             get;
         }
 
-        public virtual float GetScore(State state) { return 1; } // defualt score for choosing turn
+        public virtual float GetScore(State state, State prevState) { return 1; } // defualt score for choosing turn
 
         public abstract override string ToString(); // the string to print
 
@@ -1563,9 +1563,8 @@ namespace GAME
 
     public class BackGammonChanceAction : Action
     {
-        private const float EatingScore = 1.2f;
-        private const float BuildHouseScore = 1.15f;
-        private const float DestroyHouseScore = 0.95f;
+        private const float houseScore = 0.3f;
+        private const float regularMoveScore = 0.1f;
 
         public override MessageType messageType
         {
@@ -1701,9 +1700,153 @@ namespace GAME
             return false;
         }
 
-        public override float GetScore(State prevState)
+        readonly float[] dangerValues = new float[] { 31f, 33f, 39f, 42f, 42f, 47f, 17f, 17f, 14f, 8f, 6f, 8f, 0, 0, 3f, 3f, 0, 3f, 0, 3f, 0, 0, 0, 3f };
+
+        public float GetScore2(State state, State prevState)
         {
-            return 1;
+            // going to score the actions as such:
+            // if its a regular game calculation:
+            // + for building a usefull house
+            // - for destroying a usefull house
+            // + for getting out of danger
+            // - for getting in danger
+            // if its a running game calculation:
+            // 
+            // 
+
+            BackGammonChoiceState boardState = (BackGammonChoiceState)prevState;
+
+            var score = 100f;
+
+            var enemyLastIndex = (boardState.enemyEatenCount > 0) ? 24 : boardState.enemyPieces[boardState.enemyPieces.Count - 1];
+
+            var myLastIndex = (boardState.myEatenCount > 0) ? -1 : boardState.myPieces[0];
+
+            if (myLastIndex > enemyLastIndex) // its a running game
+            {
+                
+            }
+            else // its a normal game calculation
+            {
+                var getScoreMovement = new (sbyte, sbyte)[8];
+
+                var index = -1;
+
+                var dangerValue = new float[24];
+
+                if (boardState.enemyEatenCount > 0)
+                {
+                    for (int j = 23; j > 17; j--)
+                    {
+                        if (boardState.board[j] < 2)
+                        {
+                            dangerValue[j] = 16.7f * boardState.enemyEatenCount;
+                        }
+                    }
+                }
+
+                for (int i = 0; i < boardState.enemyPieces.Count; i++)
+                {
+                    int enemyIndex = boardState.enemyPieces[i];
+                    for (int j = 1; j <= 24; j++)
+                    {
+                        if (enemyIndex - j < 0)
+                            break;
+                        if (boardState.board[enemyIndex - j] < 2)
+                        {
+                            dangerValue[j] += dangerValues[j - 1];
+                        }
+                    }
+                }
+
+                for (int i = 0; i < Count; i++) // foreach move im doing
+                {
+                    var values = indexes[i];
+                    
+                    if (values.Item2 != -1) // if im not leaving the board
+                    {
+                        if (boardState.board[values.Item2] == 1) // im making a house
+                            score += houseScore * dangerValue[values.Item2];
+                        else if (boardState.board[values.Item2] < 1) // im just moving to a spot
+                            score -= regularMoveScore * dangerValue[values.Item2];
+                        
+
+                        index++;
+                        getScoreMovement[index] = (values.Item2, boardState.board[values.Item2]);
+
+                        if (boardState.board[values.Item2] < 0)
+                            boardState.board[values.Item2] = 0;
+                        boardState.board[values.Item2]++;
+                    }
+
+                    if (values.Item1 != -1) // im not getting back into the board
+                    {
+                        if (boardState.board[values.Item1] == 2) // im destroying a house 
+                            score -= houseScore * dangerValue[values.Item1];
+                        else if (boardState.board[values.Item1] == 1) // im leaving the spot 100%
+                            score += regularMoveScore * dangerValue[values.Item1];
+
+                        index++;
+                        getScoreMovement[index] = (values.Item1, boardState.board[values.Item1]);
+
+                        boardState.board[values.Item1]--;
+                    }
+                }
+
+
+                for (; index >= 0; index--)
+                    boardState.board[getScoreMovement[index].Item1] = getScoreMovement[index].Item2;
+            }
+
+            return score;
+        }
+
+        public override float GetScore(State state, State prevState)
+        {
+            return GetScore2(state, prevState);
+
+            BackGammonChoiceState boardState = (BackGammonChoiceState)prevState;
+
+            float score = 1;
+
+            int lastEnemyIndex = (boardState.enemyEatenCount > 0) ? 24 : boardState.enemyPieces[boardState.enemyPieces.Count - 1];
+            
+            (sbyte, sbyte)[] getScoreMovement = new (sbyte, sbyte)[8];
+
+            int index = -1;
+
+            for (int i = 0; i < Count; i++)
+            {
+                (sbyte, sbyte) values = indexes[i];
+                
+                if (values.Item2 != -1)
+                {
+                    if (lastEnemyIndex > values.Item2 && boardState.board[values.Item2] == 1)
+                        score += houseScore;
+
+                    index++;
+                    getScoreMovement[index] = (values.Item2, boardState.board[values.Item2]);
+
+                    if (boardState.board[values.Item2] < 0)
+                        boardState.board[values.Item2] = 0;
+                    boardState.board[values.Item2]++;
+                }
+                if (values.Item1 != -1)
+                {
+                    if (lastEnemyIndex > values.Item1 && boardState.board[values.Item1] == 2)
+                        score -= houseScore;
+
+                    index++;
+                    getScoreMovement[index] = (values.Item1, boardState.board[values.Item1]);
+                    
+                    boardState.board[values.Item1]--;
+                }
+            }
+
+            for (; index >= 0; index--)
+                boardState.board[getScoreMovement[index].Item1] = getScoreMovement[index].Item2;
+
+            return score;
         }
 
         public override bool Equals(object obj)

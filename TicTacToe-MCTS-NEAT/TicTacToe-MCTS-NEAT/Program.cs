@@ -11,7 +11,7 @@ namespace User
         static void Main(string[] args)
         {
             //BackGammonChoiceState start = new BackGammonChoiceState(
-            //                              new sbyte[] { 1, -2, 0, 1, 2, -5, 0, -2, -2, 0, 0, 0, -3, 0, 2, 0, 0, 0, 3, -1, 4, 2, 0, 0 },
+            //                              new sbyte[] { 0, -2, -3, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2 },
             //                              0, 0);
 
             //BackGammonChoiceState start = new BackGammonChoiceState(
@@ -22,7 +22,8 @@ namespace User
 
             BackGammonChoiceState start = new BackGammonChoiceState();
 
-            Console.WriteLine(start);
+            //start.RotateBoard();
+
             BackGammonChanceState startDice = new BackGammonChanceState(new BackGammonChoiceAction(2, 4));
 
             //List<GAME.Action> actions = startDice.GetLegalActions(start);
@@ -46,17 +47,20 @@ namespace User
 
             Console.WriteLine(parentStartNode);
 
+            Console.WriteLine("How many iterations?");
+            int simulationCount = GetIntegerInput();
+
             Stopwatch sw = new Stopwatch();
-
+            
             sw.Start();
-            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(50000, 8);
 
-            //MCTSNode bestMove = startNode.BestAction(10000);
-            MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(5000, 4);
+            MCTSNode bestMove = startNode.BestActionMultiThreading(simulationCount, 1);
+            //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(5000, 4);
 
             sw.Stop();
             Console.WriteLine(sw.Elapsed);
-            Console.WriteLine(bestMove);
+            ((BackGammonChoiceState)bestMove.GetState()).RotateBoard();
+            Console.WriteLine(bestMove.GetState());
 
             //AiTester.FindBestValueForHyperParamater(0.1f, 2.05f, 0.1f ,20000, 1521);
 
@@ -102,6 +106,18 @@ namespace User
             // 1.8f = 4.8
             // 1.9f = 4.8
             // 2.0f = 4.8
+        }
+
+        public static int GetIntegerInput()
+        {
+            while (true)
+            {
+                string input = Console.ReadLine();
+                int val;
+                if (int.TryParse(input, out val))
+                    return val;
+            }
+
         }
     }
 }

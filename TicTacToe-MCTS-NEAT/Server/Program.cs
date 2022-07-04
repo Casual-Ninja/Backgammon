@@ -74,6 +74,8 @@ namespace Server
             IPAddress.Parse(((IPEndPoint)tcpListener.LocalEndpoint).Address.ToString()) + 
             " on port number " + ((IPEndPoint)tcpListener.LocalEndpoint).Port.ToString());
 
+            GAME.BackGammonChanceAction.UseValues(new GAME.ChanceActionValues(2.453f, 3.466f, 16.1f));
+
             while (true)
             {
                 Thread.Sleep(100); // check for connection every 0.1 seconds

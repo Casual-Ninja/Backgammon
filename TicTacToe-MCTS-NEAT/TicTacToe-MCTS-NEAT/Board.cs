@@ -53,7 +53,7 @@ namespace GAME
         public abstract override string ToString(); // the string to print
     }
      
-    public class BackGammonChoiceState : State
+    public class BackGammonChoiceState : State, IEquatable<BackGammonChoiceState>
     {
         public override MessageType messageType
         {
@@ -277,6 +277,14 @@ namespace GAME
                 return HelperMethods.RandomValue(6, 21, rnd);
         }
 
+        public BackGammonChanceState GetRandomNextState(Random rnd)
+        {
+            if (HelperMethods.RandomValue(0, 6, rnd) == 0)
+                return new BackGammonChanceState(allActions[HelperMethods.RandomValue(0, 6, rnd)]);
+            else
+                return new BackGammonChanceState(allActions[HelperMethods.RandomValue(6, 21, rnd)]);
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is BackGammonChoiceState)
@@ -303,6 +311,30 @@ namespace GAME
             }
 
             return false;
+        }
+
+        public bool Equals(BackGammonChoiceState other)
+        {
+            if (other is null)
+                return false;
+
+            if (myPieces.Count != other.myPieces.Count || enemyPieces.Count != other.enemyPieces.Count ||
+                    myEatenCount != other.myEatenCount || enemyEatenCount != other.enemyEatenCount)
+                return false;
+
+            for (int i = 0; i < 24; i++)
+                if (board[i] != other.board[i])
+                    return false;
+
+            for (int i = 0; i < myPieces.Count; i++)
+                if (myPieces[i] != other.myPieces[i])
+                    return false;
+
+            for (int i = 0; i < enemyPieces.Count; i++)
+                if (enemyPieces[i] != other.enemyPieces[i])
+                    return false;
+
+            return true;
         }
 
         public override string ToString()
@@ -620,6 +652,12 @@ namespace GAME
                             case -1: // an enemy piece
                                 state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
                                 state.enemyPieces.Remove((byte)(dice.dice1 - 1)); // remove it since it no longer going to be there
+
+                                if (state.myPieces.Count == 0)
+                                {
+                                    state.myPieces.Add((byte)(dice.dice1 - 1));
+                                    break;
+                                }
                                 for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
                                     if (state.myPieces[i] >= dice.dice1) // if i passed the current index
                                     {
@@ -629,6 +667,11 @@ namespace GAME
                                 break;
                             case 0: // empty 
                                 state.board[dice.dice1 - 1] = (sbyte)(4 - dCount);
+                                if (state.myPieces.Count == 0)
+                                {
+                                    state.myPieces.Add((byte)(dice.dice1 - 1));
+                                    break;
+                                }
                                 for (int i = 0; i < state.myPieces.Count; i++) // add this piece to pieces list
                                     if (state.myPieces[i] >= dice.dice1) // if i passed the current index
                                     {
@@ -861,13 +904,23 @@ namespace GAME
                     }
                     else
                     {
-                        if (isEndGame2 && isFirstPiece)
+                        if (isEndGame2 && 
+                        (j == 0 || (j == 1 && currState.board[currState.myPieces[0]] == 1 && prevMove.Item1 == currState.myPieces[0] && (prevMove.Item2 >= currState.myPieces[j] || prevMove.Item2 == -1))))
                         {
                             if (!addedTwo)
                                 legalActions.Clear();
                             legalActions.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { prevMove, (currIndex, -1) }));
                             addedTwo = true;
                         }
+
+
+                        //if (isEndGame2 && isFirstPiece)
+                        //{
+                        //    if (!addedTwo)
+                        //        legalActions.Clear();
+                        //    legalActions.Add(new BackGammonChanceAction(new (sbyte, sbyte)[] { prevMove, (currIndex, -1) }));
+                        //    addedTwo = true;
+                        //}
                         break;
                     }
                 }
@@ -944,6 +997,7 @@ namespace GAME
                         // check if it will create a duplicate
                         bool isEndGame2 = isEndGame ||
                             (i == 0 && state.board[state.myPieces[0]] == 1 && state.myPieces[0] + dice.dice2 >= 18 && (state.myPieces.Count == 1 || state.myPieces[1] >= 18));
+
                         if (willCreateDuplicate[i] == false)
                         {
                             OneDie(state, i + 1, dice.dice1, ((sbyte)state.myPieces[i], (sbyte)(state.myPieces[i] + dice.dice2)), i == 0 && state.board[state.myPieces[0]] == 1, isEndGame2);
@@ -1328,7 +1382,7 @@ namespace GAME
                             sbyte[] newBoard = HelperMethods.CopyArray(board);
 
                             newBoard[i] -= (sbyte)j;
-                            newBoard[i + die] = (sbyte)Math.Max(1, newBoard[i + die] + j);
+                            newBoard[i + die] = (sbyte)Math.Max(j, newBoard[i + die] + j);
 
                             bool currFound = j != board[i]; // if j != board[i] it means i didn't use all the die, so i cant search deeper
 
@@ -1561,10 +1615,61 @@ namespace GAME
         }
     }
 
+    [Serializable]
+    public class ChanceActionValues
+    {
+        public float houseScore { get; set; }
+        public float regularMoveScore { get; set; }
+        public float runningGameBackScore { get; set; }
+
+        [System.Text.Json.Serialization.JsonConstructor]
+        public ChanceActionValues(float houseScore = 0.3f, float regularMoveScore = 0.1f, float runningGameBackScore = 6f)
+        {
+            this.houseScore = houseScore;
+            this.regularMoveScore = regularMoveScore;
+            this.runningGameBackScore = runningGameBackScore;
+        }
+
+        public ChanceActionValues(ChanceActionValues copy)
+        {
+            this.houseScore = copy.houseScore;
+            this.regularMoveScore = copy.regularMoveScore;
+            this.runningGameBackScore = copy.runningGameBackScore;
+        }
+
+        public ChanceActionValues(ChanceActionValues parent1, ChanceActionValues parent2, Random rnd)
+        {
+            if (rnd.Next(2) == 0)
+                houseScore = parent1.houseScore;
+            if (rnd.Next(2) == 0)
+                regularMoveScore = parent1.regularMoveScore;
+            if (rnd.Next(2) == 0)
+                runningGameBackScore = parent1.runningGameBackScore;
+        }
+
+        public override string ToString()
+        {
+            return $"HS {houseScore} RMS {regularMoveScore} RBS {runningGameBackScore}";
+        }
+    }
+
     public class BackGammonChanceAction : Action
     {
-        private const float houseScore = 0.3f;
-        private const float regularMoveScore = 0.1f;
+        public static float houseScore = 0.3f;
+        public static float regularMoveScore = 0.1f;
+        public static float runningGameBackScore = 6f;
+
+        public static void UseValues(ChanceActionValues values)
+        {
+            houseScore = values.houseScore;
+            regularMoveScore = values.regularMoveScore;
+            runningGameBackScore = values.runningGameBackScore;
+        }
+
+        public static string PrintValues()
+        {
+            return $"House Score: {houseScore} | Regular Move Score: {regularMoveScore} | Running Game Back Score: {runningGameBackScore}";
+        }
 
         public override MessageType messageType
         {
@@ -1711,8 +1816,7 @@ namespace GAME
             // + for getting out of danger
             // - for getting in danger
             // if its a running game calculation:
-            // 
-            // 
+            // you probably want to get the ones behind further ahead
 
             BackGammonChoiceState boardState = (BackGammonChoiceState)prevState;
 
@@ -1724,7 +1828,11 @@ namespace GAME
 
             if (myLastIndex > enemyLastIndex) // its a running game
             {
-                
+                for (int i = 0; i < Count; i++)
+                {
+                    if (indexes[i].Item1 < 18) // trying to get pips into the wanted house
+                        score += runningGameBackScore;
+                }
             }
             else // its a normal game calculation
             {

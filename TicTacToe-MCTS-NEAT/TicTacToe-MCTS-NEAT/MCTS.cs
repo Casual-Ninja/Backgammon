@@ -98,7 +98,7 @@ namespace MCTS
         /// <returns>Returns the game result of the simulation.</returns>
         private int RollOut(System.Random rnd)
         {
-            State parentState = parent.state;
+            State parentState = this.parent.state;
             State rollOutState = this.state;
             int mult = -1;
             while (rollOutState.IsGameOver() == false) // while i haven't reached end of game
@@ -124,6 +124,78 @@ namespace MCTS
             }
             // game result is not relative to who played, and so need to multiply by mult
             return rollOutState.GameResult() * mult;
+        }
+
+        /// <summary>
+        /// Does the "Simulation" part of the algorithm.
+        /// </summary>
+        /// <param name="parentState">Parent of the starting state.</param>
+        /// <param name="rollOutState">the state to start from.</param>
+        /// <param name="rnd">The random class to use.</param>
+        /// <returns>Returns the game result of the simulation.</returns>
+        private int RollOut(State parentState, State rollOutState, int mult, System.Random rnd)
+        {
+            while (rollOutState.IsGameOver() == false) // while i haven't reached end of game
+            {
+                // pick an action (soft play == random moves)
+                //Action action = RolloutPolicySoftPlay(rollOutState.GetLegalActions(parentState), rollOutState, rnd);
+
+                // pick an action (hard play == calculated moves)
+                Action action = RolloutPolicyHardPlay(rollOutState.GetLegalActions(parentState), rollOutState, parentState, rnd);
+
+
+                State temp = rollOutState;
+
+                // go to the next state
+                rollOutState = rollOutState.Move(parentState, action);
+                parentState = temp;
+
+                // i only want to change sign of result every two steps, as you can think of
+                // every pair of chance and choice states being one overall part of a turn.
+                // so every two states do i want to "flip" the result to reflect the correct player.
+                if (rollOutState.IsChanceState())
+                    mult = -mult;
+            }
+            // game result is not relative to who played, and so need to multiply by mult
+            return rollOutState.GameResult() * mult;
+        }
+
+        /// <summary>
+        /// Does the "Simulation" part of the algorithm only for depth 2.
+        /// </summary>
+        /// <param name="rnd">The random class to use.</param>
+        /// <returns>Returns the game result of the simulation.</returns>
+        private (State parentState, State rollOutState, int mult, bool finishedEarly) RollOutDepth2(System.Random rnd)
+        {
+            State parentState = this.parent.state;
+            State rollOutState = this.state;
+            int mult = -1;
+            int depth = 0;
+            while (rollOutState.IsGameOver() == false && depth < 2) // while i haven't reached end of game
+            {
+                // pick an action (soft play == random moves)
+                //Action action = RolloutPolicySoftPlay(rollOutState.GetLegalActions(parentState), rollOutState, rnd);
+
+                // pick an action (hard play == calculated moves)
+                Action action = RolloutPolicyHardPlay(rollOutState.GetLegalActions(parentState), rollOutState, parentState, rnd);
+
+
+                State temp = rollOutState;
+
+                // go to the next state
+                rollOutState = rollOutState.Move(parentState, action);
+                parentState = temp;
+
+                // i only want to change sign of result every two steps, as you can think of
+                // every pair of chance and choice states being one overall part of a turn.
+                // so every two states do i want to "flip" the result to reflect the correct player.
+                if (rollOutState.IsChanceState())
+                    mult = -mult;
+
+                depth++;
+            }
+            // game result is not relative to who played, and so need to multiply by mult
+            return (parentState, rollOutState, mult, depth < 2);
         }
 
         /// <summary>
@@ -548,6 +620,185 @@ namespace MCTS
                 }
             }
         }
+
+        // --- MCTS Tree lock MULTITHREAD ---
+
+        private void CalculateValuesGlobalLock(object rndObj)
+        {
+            System.Random rnd = (System.Random)rndObj;
+
+            System.Console.WriteLine("Calculating using global mutex lock");
+            for (int i = 0; i < threadingSimulationCount; i++)
+            {
+                MCTSNode endNode;
+
+                (State, State, int, bool) values;
+
+                lock (this)
+                {
+                    endNode = TreePolicy(rnd);
+
+                    values = endNode.RollOutDepth2(rnd);
+
+                    if (values.Item4)
+                    {
+                        endNode.BackPropagate(values.Item2.GameResult() * values.Item3);
+                        continue;
+                    }
+                }
+
+                int result = RollOut(values.Item1, values.Item2, values.Item3, rnd);
+
+                lock (this)
+                {
+                    endNode.BackPropagate(result);
+                }
+            }
+        }
+
+        private void CalculateValuesGlobalLockInTime(object rndObj)
+        {
+            System.Random rnd = (System.Random)rndObj;
+
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            int count = 0;
+            while (sw.ElapsedMilliseconds < threadingSimulationTime)
+            {
+                MCTSNode endNode;
+
+                (State, State, int, bool) values;
+
+                lock (this)
+                {
+                    endNode = TreePolicy(rnd);
+
+                    values = endNode.RollOutDepth2(rnd);
+
+                    if (values.Item4)
+                    {
+                        endNode.BackPropagate(values.Item2.GameResult() * values.Item3);
+                        continue;
+                    }
+                }
+
+                int result = RollOut(values.Item1, values.Item2, values.Item3, rnd);
+
+                lock (this)
+                {
+                    endNode.BackPropagate(result);
+                }
+
+                count++;
+            }
+            sw.Stop();
+            
+            System.Console.WriteLine("Rollouts using global mutex: " + count);
+        }
+
+
+        public MCTSNode BestActionMultiThreadingGlobalLock(int simulationCount, int threadCount, params int[] seeds)
+        {
+            Thread[] threads = new Thread[threadCount - 1];
+
+            threadingSimulationCount = simulationCount;
+
+            for (int i = 0; i < threadCount - 1; i++)
+            {
+                int seed = seeds.Length > i ? seeds[i] : HelperMethods.GetRandomSeed();
+                
+                Thread newThread = new Thread(new ParameterizedThreadStart(CalculateValuesGlobalLock));
+                threads[i] = newThread;
+                newThread.Start(new System.Random(seed));
+            }
+
+            int[] oldVisits = null;
+
+            if (children != null)
+            {
+                oldVisits = new int[children.Length];
+                for (int i = 0; i < children.Length; i++)
+                    oldVisits[i] = children[i] == null ? 0 : children[i].numberOfVisits;
+            }
+
+            System.Console.WriteLine("Created the threads");
+
+            int seed2 = seeds.Length > threadCount - 1 ? seeds[threadCount - 1] : HelperMethods.GetRandomSeed();
+            CalculateValuesGlobalLock(new System.Random(seed2));
+
+            foreach (Thread thread in threads)
+            {
+                thread.Join();
+            }
+
+            System.Console.WriteLine("All threads finished");
+
+            MCTSNode bestChild = children[0];
+            int totalVisits = 0;
+            int newVisits = 0;
+
+            for (int i = 0; i < children.Length; i++)
+            {
+                totalVisits += children[i].numberOfVisits;
+                if (oldVisits == null)
+                    newVisits += children[i].numberOfVisits;
+                else
+                    newVisits += children[i].numberOfVisits - oldVisits[i];
+
+                if (children[i].numberOfVisits > bestChild.numberOfVisits)
+                    bestChild = children[i];
+            }
+
+            System.Console.WriteLine("Total: " + totalVisits + " New Visits: " + newVisits);
+
+            System.Console.WriteLine("Best Wins: " + bestChild.score + " Best Visits: " + bestChild.numberOfVisits);
+            return bestChild;
+        }
+
+
+        public MCTSNode BestActionInTimeMultiThreadingGlobalLock(float maxTime, int threadCount)
+        {
+            Thread[] threads = new Thread[threadCount - 1];
+
+            threadingSimulationTime = maxTime;
+
+            // start all the threads
+            for (int i = 0; i < threadCount - 1; i++)
+            {
+                Thread newThread = new Thread(new ParameterizedThreadStart(CalculateValuesGlobalLockInTime));
+                threads[i] = newThread;
+                newThread.Start(new System.Random());
+            }
+
+            System.Console.WriteLine("Created the threads");
+
+            // calculate in this thread as well
+            CalculateValuesGlobalLockInTime(new System.Random());
+
+            // wait for everyone to finish
+            foreach (Thread thread in threads)
+            {
+                thread.Join();
+            }
+
+            System.Console.WriteLine("All threads finished");
+
+            // find the best child
+            MCTSNode bestChild = children[0];
+
+            for (int i = 0; i < children.Length; i++)
+            {
+                if (children[i].numberOfVisits > bestChild.numberOfVisits)
+                    bestChild = children[i];
+            }
+
+            System.Console.WriteLine("With the chance values of: " + BackGammonChanceAction.PrintValues());
+            System.Console.WriteLine("Best Wins: " + bestChild.score + " Best Visits: " + bestChild.numberOfVisits);
+            return bestChild;
+        }
+
+        // --- MCTS Tree lock MULTITHREAD ---
+
 
         public override string ToString()
         {

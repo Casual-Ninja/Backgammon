@@ -157,7 +157,10 @@ namespace HelperSpace
         public static bool HoldSameItems<T>(List<T> list1, List<T> list2)
         {
             if (list1.Count != list2.Count) // have to be same length
+            {
+                Console.WriteLine($"Not same length: {list1.Count} vs {list2.Count}");
                 return false;
+            }
 
             List<T> copyList2 = new List<T>(list2); // copy it so i don't destroy it
 
@@ -175,7 +178,15 @@ namespace HelperSpace
                     }
                 }
                 if (!found)
+                {
+                    Console.WriteLine("not found: " + item.ToString());
+
+                    Console.WriteLine("The second list:");
+                    Console.WriteLine(ListToString(list2));
+
+
                     return false;
+                }
             }
             return true;
         }
@@ -204,6 +215,97 @@ namespace HelperSpace
                     return false;
             }
             return true;
+        }
+
+        public static void QuickSort<T>(int[] array, params T[][] arrays)
+        {
+            QuickSort(array, 0, array.Length - 1, arrays);
+        }
+
+        // A utility function to swap two elements
+        private static void Swap<T>(int[] arr, int i, int j, params T[][] arrays)
+        {
+            int temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
+
+            if (arrays != null)
+            {
+                foreach (T[] array in arrays)
+                {
+                    T temp2 = array[i];
+                    array[i] = array[j];
+                    array[j] = temp2;
+                }
+            }
+        }
+
+        /* This function takes last element as pivot, places
+        the pivot element at its correct position in sorted
+        array, and places all smaller (smaller than pivot)
+        to left of pivot and all greater elements to right
+        of pivot */
+        private static int Partition<T>(int[] arr, int low, int high, params T[][] arrays)
+        {
+            // pivot
+            int pivot = arr[high];
+
+            // Index of smaller element and
+            // indicates the right position
+            // of pivot found so far
+            int i = (low - 1);
+
+            for (int j = low; j <= high - 1; j++)
+            {
+                // If current element is smaller
+                // than the pivot
+                if (arr[j] < pivot)
+                {
+                    // Increment index of
+                    // smaller element
+                    i++;
+                    Swap(arr, i, j, arrays);
+                }
+            }
+            Swap(arr, i + 1, high, arrays);
+            return (i + 1);
+        }
+
+        /* 
+        The main function that implements QuickSort
+        arr[] --> Array to be sorted,
+        low --> Starting index,
+        high --> Ending index
+        */
+        private static void QuickSort<T>(int[] arr, int low, int high, params T[][] arrays)
+        {
+            if (low < high)
+            {
+                // pi is partitioning index, arr[p]
+                // is now at right place
+                int pi = Partition(arr, low, high, arrays);
+
+                // Separately sort elements before
+                // partition and after partition
+                QuickSort(arr, low, pi - 1, arrays);
+                QuickSort(arr, pi + 1, high, arrays);
+            }
+        }
+
+        public static void FlipArray<T>(T[] array)
+        {
+            if (array == null)
+                return;
+
+            T[] newArray = new T[array.Length];
+
+            for (int i = 0; i < newArray.Length; i++)
+                newArray[i] = array[i];
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                array[i] = newArray[array.Length - 1 - i];
+            }
         }
     }
 }

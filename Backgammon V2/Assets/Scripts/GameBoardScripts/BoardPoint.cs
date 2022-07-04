@@ -48,7 +48,6 @@ public class BoardPoint : MonoBehaviour
 
     public void SetCorrectNumberText()
     {
-        print("Set text absolute: " + pipHolder.childCount);
         for (int i = 0; i < PipCount(); i++)
         {
             if (i <= 3 || (PipCount() == 5))
@@ -60,7 +59,6 @@ public class BoardPoint : MonoBehaviour
 
     public void SetCorrectNumberTextAtStartOfMovement()
     {
-        print("Set text at start: " + pipHolder.childCount);
         for (int i = 0; i < PipCount(); i++)
         {
             if (i <= 3 || (PipCount() == 5))

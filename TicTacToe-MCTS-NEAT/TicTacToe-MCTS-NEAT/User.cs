@@ -250,8 +250,8 @@ namespace BackGammonUser
         public const string UserInformationPath = "Information";
         public const string UserPasswordPath = "Password";
 
-        private const float TimeToSearch = 10000; // seconds to think per move
-        private const int threadsToUse = 8; // 8 threads per move
+        private const float TimeToSearch = 5000; // seconds to think per move
+        private const int threadsToUse = 4; // threads per move
 
         
         private HashSet<string> onlineUsers;
@@ -439,11 +439,12 @@ namespace BackGammonUser
 
             List<GAME.Action> legalActions = state.GetLegalActions(parentState);
             if (legalActions.Count > 1) // i actually have to think about the move
-            {
+            {                                             
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
-                
-                MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(TimeToSearch, threadCount);
+
+                //MCTSNode bestMove = startNode.BestActionInTimeMultiThreading(TimeToSearch, threadCount);
+                MCTSNode bestMove = startNode.BestActionInTimeMultiThreadingGlobalLock(TimeToSearch, threadCount);
 
                 int bestMoveIndex = startNode.GetIndexOfChild(bestMove);
 
@@ -485,7 +486,9 @@ namespace BackGammonUser
 
             List<GAME.Action> diceOptions = parentState.GetLegalActions(null);
             this.state = (BackGammonChanceState)parentState.Move(null, diceOptions[rnd.Next(diceOptions.Count)]);
-            
+
+            Console.WriteLine("New state from computer move: \n" + this.parentState.ToString());
+
             if (this.parentState.IsGameOver()) // computer won!
             {
                 ComputerWon();
@@ -540,6 +543,8 @@ namespace BackGammonUser
                 this.parentState = (BackGammonChoiceState)this.state.Move(this.parentState, chanceAction);
                 // generate the new die
                 this.state = new BackGammonChanceState(this.parentState.RandomPick(this.parentState.GetLegalActions(null), rnd));
+
+                Console.WriteLine("New state from player move: \n" + this.parentState.ToString());
 
                 if (this.parentState.IsGameOver()) // player won!
                     PlayerWon();
